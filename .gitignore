@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+
+backend/.env
+backend/.chroma/
+backend/chroma/
+backend/*.sqlite3
+backend/*.db
+backend/img4265_fixed.png
+backend/img4265_sips.jpg
+
