@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Enhanced AI API</title>
+    <!-- Syntax Highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -138,7 +142,170 @@
         .message-content {
             line-height: 1.6;
             color: #333;
-            white-space: pre-wrap;
+        }
+
+        .message-content pre {
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 16px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+
+        .message-content code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .message-content pre code {
+            background: transparent;
+            padding: 0;
+            color: #d4d4d4;
+        }
+
+        .message-content a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .message-content a:hover {
+            text-decoration: underline;
+        }
+
+        .message-content ul, .message-content ol {
+            margin-left: 20px;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+
+        .message-content li {
+            margin: 5px 0;
+        }
+
+        .message-content h1, .message-content h2, .message-content h3 {
+            margin-top: 15px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .message-content blockquote {
+            border-left: 4px solid #667eea;
+            padding-left: 15px;
+            margin: 10px 0;
+            color: #666;
+        }
+
+        .search-result {
+            background: #f9f9f9;
+            border-left: 4px solid #667eea;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 6px;
+        }
+
+        .search-result-title {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .search-result-url {
+            font-size: 0.85rem;
+            color: #48bb78;
+            margin-bottom: 5px;
+        }
+
+        .search-result-snippet {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .pdf-preview {
+            background: #f9f9f9;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+
+        .pdf-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .pdf-icon {
+            font-size: 2rem;
+        }
+
+        .pdf-info {
+            flex: 1;
+        }
+
+        .pdf-title {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .pdf-meta {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .pdf-content {
+            font-size: 0.9rem;
+            color: #333;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .code-block-header {
+            background: #2d2d2d;
+            color: #d4d4d4;
+            padding: 8px 12px;
+            border-radius: 8px 8px 0 0;
+            font-size: 0.85rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .code-language {
+            font-weight: 600;
+        }
+
+        .copy-code-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .copy-code-btn:hover {
+            background: #5568d3;
+        }
+
+        .tool-result-preview {
+            background: #f0f9ff;
+            border-left: 4px solid #48bb78;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 6px;
+        }
+
+        .tool-result-header {
+            font-weight: 600;
+            color: #48bb78;
+            margin-bottom: 8px;
         }
 
         .message-meta {
@@ -796,6 +963,9 @@
             const div = document.createElement('div');
             div.className = 'message';
             
+            // Format content with markdown and special previews
+            let formattedContent = formatContent(content, meta);
+            
             let metaHtml = '';
             if (meta) {
                 metaHtml = '<div class="message-meta">';
@@ -839,13 +1009,118 @@
             
             div.innerHTML = `
                 <div class="message-assistant">
-                    <div class="message-content">${escapeHtml(content)}</div>
+                    <div class="message-content">${formattedContent}</div>
                     ${metaHtml}
                 </div>
             `;
             
             container.appendChild(div);
+            
+            // Apply syntax highlighting to code blocks
+            div.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+            
             container.scrollTop = container.scrollHeight;
+        }
+
+        function formatContent(content, meta) {
+            // Check if content has tool results to display specially
+            if (meta && meta.toolResults) {
+                content = addToolResultPreviews(content, meta.toolResults);
+            }
+            
+            // Convert markdown to HTML
+            let html = marked.parse(content);
+            
+            // Add copy buttons to code blocks
+            html = html.replace(/<pre><code class="language-(\w+)">/g, (match, lang) => {
+                return `<div class="code-block-header">
+                    <span class="code-language">${lang}</span>
+                    <button class="copy-code-btn" onclick="copyCode(this)">Copy</button>
+                </div><pre><code class="language-${lang}">`;
+            });
+            
+            return html;
+        }
+
+        function addToolResultPreviews(content, toolResults) {
+            // Add special previews for tool results
+            let preview = '';
+            
+            toolResults.forEach(result => {
+                if (result.name === 'web_search') {
+                    preview += formatSearchResults(result.output);
+                } else if (result.name === 'pdf_analyze') {
+                    preview += formatPDFPreview(result.output);
+                } else if (result.name === 'code_analyze') {
+                    preview += formatCodeAnalysis(result.output);
+                }
+            });
+            
+            return preview + content;
+        }
+
+        function formatSearchResults(output) {
+            try {
+                const results = JSON.parse(output);
+                if (!Array.isArray(results)) return '';
+                
+                let html = '<div style="margin-bottom: 15px;">';
+                results.slice(0, 5).forEach(result => {
+                    html += `
+                        <div class="search-result">
+                            <div class="search-result-title">${escapeHtml(result.title || 'Untitled')}</div>
+                            <div class="search-result-url">${escapeHtml(result.url || '')}</div>
+                            <div class="search-result-snippet">${escapeHtml(result.snippet || '')}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                return html;
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function formatPDFPreview(output) {
+            try {
+                const data = JSON.parse(output);
+                return `
+                    <div class="pdf-preview">
+                        <div class="pdf-header">
+                            <div class="pdf-icon">📄</div>
+                            <div class="pdf-info">
+                                <div class="pdf-title">${escapeHtml(data.title || 'PDF Document')}</div>
+                                <div class="pdf-meta">${data.pages || 0} pages • ${data.size || 'Unknown size'}</div>
+                            </div>
+                        </div>
+                        <div class="pdf-content">${escapeHtml(data.preview || data.text || '')}</div>
+                    </div>
+                `;
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function formatCodeAnalysis(output) {
+            return `
+                <div class="tool-result-preview">
+                    <div class="tool-result-header">📁 Code Analysis</div>
+                    <pre style="background: #f9f9f9; padding: 10px; border-radius: 4px; overflow-x: auto;"><code>${escapeHtml(output)}</code></pre>
+                </div>
+            `;
+        }
+
+        function copyCode(button) {
+            const codeBlock = button.closest('.code-block-header').nextElementSibling.querySelector('code');
+            const text = codeBlock.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                button.textContent = 'Copied!';
+                setTimeout(() => {
+                    button.textContent = 'Copy';
+                }, 2000);
+            });
         }
 
         function addLoadingMessage(containerId) {
@@ -887,8 +1162,9 @@
                 const meta = {
                     skill: data.skill,
                     tools: data.tool_calls ? data.tool_calls.map(t => t.name) : [],
-                    memory: data.memory_hits || 0,
-                    cost: data.usage?.total_cost?.toFixed(4) || '0.0080'
+                    toolResults: data.tool_calls || [],
+                    memory: data.metrics?.memory_hits || 0,
+                    cost: data.metrics?.usage?.total_cost?.toFixed(4) || '0.0080'
                 };
                 
                 addAssistantMessage('enhanced-messages', data.output, meta);
