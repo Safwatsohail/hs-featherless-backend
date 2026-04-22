@@ -400,6 +400,16 @@ class Orchestrator:
             context_key=context_key,
             metadata={"role": "user"},
         )
+        
+        # Extract and store facts from user input
+        await self._extract_and_store_facts(
+            user_id=user_id,
+            conversation_id=conversation_id,
+            text=user_input,
+            memory_scope=memory_scope,
+            context_key=context_key
+        )
+        
         assistant_memory_text = self._compress_assistant_memory(assistant_output)
         if assistant_memory_text:
             await self.memory.vector_store_text(
@@ -484,3 +494,85 @@ class Orchestrator:
                     return explicit
 
         return await self.skills.select_skill(user_input=user_input, skill_name=None)
+
+    async def _extract_and_store_facts(
+        self,
+        *,
+        user_id: uuid.UUID,
+        conversation_id: uuid.UUID,
+        text: str,
+        memory_scope: str,
+        context_key: str | None,
+    ) -> None:
+        """
+        Extract and store important facts from user input
+        Examples: names, preferences, context, dislikes, etc.
+        """
+        # Patterns to detect important information
+        patterns = [
+            # Name patterns
+            (r"(?:my name is|i'm|i am|call me)\s+(\w+)", "name"),
+            (r"(?:i'm called|they call me)\s+(\w+)", "name"),
+            
+            # Preference patterns
+            (r"i (?:prefer|like|love|want|need)\s+(.+?)(?:\.|$|,)", "preference"),
+            (r"i (?:don't like|hate|dislike)\s+(.+?)(?:\.|$|,)", "dislike"),
+            
+            # Context patterns
+            (r"i(?:'m| am) (?:building|working on|developing|creating)\s+(.+?)(?:\.|$|,)", "project"),
+            (r"i(?:'m| am) (?:a|an)\s+(.+?)(?:\.|$|,)", "role"),
+            
+            # Location/company
+            (r"i work at\s+(.+?)(?:\.|$|,)", "company"),
+            (r"i(?:'m| am) from\s+(.+?)(?:\.|$|,)", "location"),
+        ]
+        
+        import re
+        facts_to_store = []
+        
+        for pattern, fact_type in patterns:
+            matches = re.finditer(pattern, text.lower(), re.IGNORECASE)
+            for match in matches:
+                fact_value = match.group(1).strip()
+                if fact_value and len(fact_value) > 1:
+                    facts_to_store.append({
+                        "type": fact_type,
+                        "value": fact_value,
+                        "original": match.group(0)
+                    })
+        
+        # Store each fact as structured memory
+        for fact in facts_to_store:
+            fact_text = f"User {fact['type']}: {fact['value']}"
+            
+            # Store in vector store for retrieval
+            await self.memory.vector_store_text(
+                user_id=user_id,
+                conversation_id=conversation_id,
+                text=fact_text,
+                memory_scope=memory_scope,
+                context_key=context_key,
+                metadata={
+                    "type": "fact",
+                    "fact_type": fact["type"],
+                    "fact_value": fact["value"],
+                    "role": "user_fact"
+                },
+            )
+            
+            # Store as structured memory
+            await self.memory.store_structured(
+                user_id=user_id,
+                conversation_id=conversation_id,
+                kind=f"fact_{fact['type']}",
+                memory_scope=memory_scope,
+                context_key=context_key,
+                data={
+                    "type": fact["type"],
+                    "value": fact["value"],
+                    "original_text": fact["original"],
+                    "extracted_from": text[:100]
+                },
+            )
+            
+            logger.info(f"Stored fact: {fact['type']} = {fact['value']}")
