@@ -27,4 +27,7 @@ class ChatResponse(BaseModel):
     conversation_id: uuid.UUID
     skill: str
     tool_calls: list[ToolCall] = Field(default_factory=list)
+    tool_results: list[dict] = Field(default_factory=list)
+    provider: str | None = None
+    model: str | None = None
     output: str

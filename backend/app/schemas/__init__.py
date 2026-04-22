@@ -1,6 +1,13 @@
 from backend.app.schemas.apikey import ApiKeySaveRequest, ApiKeySaveResponse
+from backend.app.schemas.aurora_auth import AuroraAuthContext, AuroraKeyIssueRequest, AuroraKeyResponse
 from backend.app.schemas.chat import ChatRequest, ChatResponse, ToolCall
 from backend.app.schemas.memory import MemoryHit, MemoryRetrieveResponse, MemoryStoreRequest
+from backend.app.schemas.public_api import (
+    PublicRunRequest,
+    PublicRunResponse,
+    PublicSkillSummary,
+    SkillInvokeRequest,
+)
 from backend.app.schemas.skill import (
     MemoryRules,
     SkillCreate,
@@ -8,21 +15,40 @@ from backend.app.schemas.skill import (
     SkillImportResult,
     SkillResponse,
 )
-from backend.app.schemas.tool import ToolDescriptor
+from backend.app.schemas.tool import (
+    ExternalToolCreate,
+    OverviewStats,
+    ToolDescriptor,
+    ToolRunRequest,
+    ToolRunResponse,
+    ToolStatsItem,
+)
 
 __all__ = [
     "ApiKeySaveRequest",
     "ApiKeySaveResponse",
+    "AuroraAuthContext",
+    "AuroraKeyIssueRequest",
+    "AuroraKeyResponse",
     "ChatRequest",
     "ChatResponse",
     "ToolCall",
     "MemoryHit",
     "MemoryRetrieveResponse",
     "MemoryStoreRequest",
+    "PublicRunRequest",
+    "PublicRunResponse",
+    "PublicSkillSummary",
+    "SkillInvokeRequest",
     "MemoryRules",
     "SkillCreate",
     "SkillImportRequest",
     "SkillImportResult",
     "SkillResponse",
+    "ExternalToolCreate",
+    "OverviewStats",
     "ToolDescriptor",
+    "ToolRunRequest",
+    "ToolRunResponse",
+    "ToolStatsItem",
 ]

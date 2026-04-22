@@ -89,16 +89,18 @@ class LLMClient:
             "Schema: {\"tool_calls\": [{\"name\": \"tool_name\", \"input\": {}}]}\n"
             "Use only allowed tools. If no tool is needed, return {\"tool_calls\": []}."
         )
+        # Only send the last user message to the planner — not the full system prompt with memory
+        user_messages = [m for m in messages if m.get("role") == "user"]
         planned = await self.generate(
             model=model,
             temperature=0.0,
             messages=[
                 {"role": "system", "content": planner_system + "\nAllowed tools:\n" + json.dumps(tools)},
-                *messages,
+                *user_messages,
             ],
         )
         try:
-            payload = json.loads(planned.content)
+            payload = json.loads(self._strip_json_fences(planned.content))
         except Exception:
             return {"tool_calls": []}
         if not isinstance(payload, dict) or not isinstance(payload.get("tool_calls"), list):
@@ -130,12 +132,24 @@ class LLMClient:
             ],
         )
         try:
-            payload = json.loads(planned.content)
+            payload = json.loads(self._strip_json_fences(planned.content))
         except Exception:
             return {"skill_name": None, "reason": "selector_parse_failed"}
         if not isinstance(payload, dict):
             return {"skill_name": None, "reason": "selector_invalid"}
         return {"skill_name": payload.get("skill_name"), "reason": payload.get("reason", "")}
+
+    @staticmethod
+    def _strip_json_fences(text: str) -> str:
+        """Strip markdown code fences that LLMs often wrap JSON responses in."""
+        stripped = text.strip()
+        if stripped.startswith("```"):
+            # Remove opening fence (```json or ```)
+            stripped = stripped.split("\n", 1)[-1]
+            # Remove closing fence
+            if stripped.endswith("```"):
+                stripped = stripped.rsplit("```", 1)[0]
+        return stripped.strip()
 
     async def _call_openai(self, *, api_key: str, prompt: str, model: str | None) -> str:
         data = await self._openai_chat(
@@ -184,7 +198,12 @@ class LLMClient:
                 json=payload,
             )
         if response.status_code >= 400:
-            raise LLMError(f"{provider_name} error {response.status_code}: {response.text[:300]}")
+            details = response.text[:300]
+            if provider_name == "openrouter" and response.status_code == 404:
+                details = (
+                    f"{details} Try model='openrouter/free' or another currently available OpenRouter model."
+                )
+            raise LLMError(f"{provider_name} error {response.status_code}: {details}")
         return response.json()
 
     def _resolve_openai_compatible_base_url(self, provider_name: str) -> str:

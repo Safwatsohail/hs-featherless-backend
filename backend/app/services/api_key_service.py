@@ -5,6 +5,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.core.config import get_settings
 from backend.app.models.api_key import ApiKey
 from backend.app.models.user import User
 from backend.app.utils.crypto import CryptoBox
@@ -45,7 +46,15 @@ class ApiKeyService:
             select(ApiKey).where(ApiKey.user_id == user_id, ApiKey.provider == provider)
         )
         row = res.scalar_one_or_none()
-        if not row:
-            return None
-        return self.crypto.decrypt(row.encrypted_key)
+        if row:
+            return self.crypto.decrypt(row.encrypted_key)
 
+        settings = get_settings()
+        if (
+            settings.test_mode_enabled
+            and settings.test_default_provider == provider
+            and settings.test_default_api_key
+        ):
+            return settings.test_default_api_key
+
+        return None

@@ -133,7 +133,7 @@ The console will:
 
 Default test settings:
 - provider: `openrouter`
-- model: `meta-llama/llama-3.3-8b-instruct:free`
+- model: `openrouter/free`
 - memory scope: `workspace`
 - context key: `backend-test`
 
@@ -146,16 +146,78 @@ Useful console commands:
 - `/context`
 - `/quit`
 
-## Endpoints
+## Built-In API Simulator
+If you want a simple browser demo instead of the terminal console:
+
+1. Start the backend:
+```bash
+.venv/bin/uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+```
+
+2. Open:
+```text
+http://127.0.0.1:8000/studio
+```
+
+The built-in simulator lets you:
+- demo the higher-level public API instead of a raw model chat
+- choose between `POST /run`, `POST /skills/{skill}`, `POST /tools/{tool}`, and `POST /memory/context`
+- show the generated request payload a developer would send
+- show an SDK snippet in Python, JavaScript, or curl
+- show the orchestrated response alongside the activated skill, tools, and memory context
+- present Aurora as an intelligence layer on top of Featherless-style model access
+
+External tool support:
+- built-in tools already cover search, deep search, web scraping via `url_fetch`, PDF analysis, code analysis, Python, bash, and DB query
+- users can add more tools by registering webhook-backed tools through `POST /tools/external`
+- once a tool exists, skills can include that tool name in `tool_permissions`
+
+## Public API
+- `POST /run` run the higher-level abstraction API with auto skill routing
+- `POST /skills/{skill_name}` run a specific skill through the same orchestration, memory, and tool stack
+- `POST /tools/{tool_name}` run a public tool endpoint directly
+- `POST /memory` store centralized memory
+- `POST /memory/context` fetch reusable centralized context
+- `GET /v1/skills` list skill-ready endpoints for the versioned public API layer
+- `POST /v1/chat` versioned alias for `/run`
+- `POST /v1/run` versioned alias for `/run`
+- `POST /v1/skills/{skill_name}` versioned alias for `/skills/{skill_name}`
+- `POST /v1/tools/{tool_name}` versioned alias for `/tools/{tool_name}`
+- `POST /v1/memory` versioned alias for `/memory`
+- `POST /v1/memory/context` versioned alias for `/memory/context`
+
+Example:
+```python
+import requests
+
+requests.post("http://127.0.0.1:8000/run", json={
+    "user_id": "00000000-0000-0000-0000-000000000001",
+    "input": "Review this Python function for bugs",
+    "provider": "openrouter",
+    "model": "openrouter/free",
+    "memory_scope": "workspace",
+    "context_key": "demo-project"
+})
+```
+
+Behind the scenes:
+- skill runs explicitly or is auto-selected
+- centralized memory is loaded
+- tools run when needed
+- the chosen upstream LLM is called
+- one structured response is returned
+
+## Internal Endpoints
 - `POST /apikey` save or rotate an encrypted provider API key
 - `POST /skills` create a custom skill
 - `POST /skills/import` import Claude-style `SKILL.md` skills from a local path or git repo
 - `GET /skills` list built-in and custom skills
 - `GET /tools` list available tools and their input contracts
+- `POST /tools/run` run a tool directly for testing
 - `POST /memory` store structured and vector memory
 - `GET /memory` retrieve relevant memories
 - `POST /chat` run the orchestration pipeline
-- `GET /health` health check
+- `GET /healthz` health check
 
 ## Decision Layer
 The backend is designed around two model roles:
@@ -377,7 +439,7 @@ curl -X POST http://localhost:8000/chat \
     "user_id": "00000000-0000-0000-0000-000000000001",
     "input": "Do deep research on benefits of async FastAPI handlers",
     "provider": "openrouter",
-    "model": "meta-llama/llama-3.3-8b-instruct:free",
+    "model": "openrouter/free",
     "memory_scope": "workspace",
     "context_key": "acme-dashboard"
   }'

@@ -24,11 +24,24 @@ class OrchestratorResult:
     conversation_id: uuid.UUID
     skill: str
     tool_calls: list[ToolCall]
+    tool_results: list[dict]
+    provider: str
+    model: str
     output: str
+    memory_hits: int
+    short_context_messages: int
+    usage: dict
 
 
 class Orchestrator:
     assistant_memory_max_chars = 500
+    openrouter_legacy_model_aliases = {
+        "meta-llama/llama-3.3-8b-instruct:free": "openrouter/free",
+        "deep-seek": "openrouter/free",
+        "deepseek": "openrouter/free",
+        "deep seek": "openrouter/free",
+        "deepseek/free": "openrouter/free",
+    }
 
     def __init__(
         self,
@@ -70,7 +83,10 @@ class Orchestrator:
         await self.skills.ensure_builtin_skills()
 
         selected_provider = provider or self.default_provider
-        selected_model = model or self.default_model
+        selected_model = self._normalize_model(
+            provider=selected_provider,
+            model=model or self.default_model,
+        )
         api_key = await self.api_keys.get_decrypted_key(user_id=user_id, provider=selected_provider)
         if not api_key:
             raise LLMError(
@@ -157,7 +173,7 @@ class Orchestrator:
         tool_outputs: list[dict] = []
         permitted_tools = list(skill.tool_permissions or [])
         if permitted_tools:
-            planner_tools = self.tools.get_tool_specs(permitted_tools)
+            planner_tools = await self.tools.get_tool_specs(permitted_tools)
             plan = await planner_llm.plan_tool_calls(model=planner_model, messages=messages, tools=planner_tools)
             for call in plan.get("tool_calls", []):
                 try:
@@ -169,6 +185,13 @@ class Orchestrator:
                 if not self._is_tool_call_allowed(skill_config=skill_config, tool_call=tc):
                     continue
                 tool_calls.append(tc)
+        if not tool_calls:
+            tool_calls = self._fallback_tool_calls(
+                skill_name=skill.name,
+                user_input=user_input,
+                skill_arguments=skill_arguments,
+                permitted_tools=permitted_tools,
+            )
 
         for tc in tool_calls:
             try:
@@ -180,10 +203,11 @@ class Orchestrator:
                 tool_outputs.append({"name": tc.name, "output": f"ToolError: {exc}", "metadata": {}})
 
         if tool_outputs:
+            # Inject tool results as a user-role message so all providers accept it
             messages.append(
                 {
-                    "role": "system",
-                    "content": "Tool results:\n" + json.dumps(tool_outputs, ensure_ascii=False),
+                    "role": "user",
+                    "content": "Tool results (use these to answer):\n" + json.dumps(tool_outputs, ensure_ascii=False),
                 }
             )
 
@@ -197,6 +221,9 @@ class Orchestrator:
             assistant_output=output_text,
             tool_calls=tool_calls,
             tool_outputs=tool_outputs,
+            skill_name=skill.name,
+            provider=selected_provider,
+            model=selected_model,
             memory_scope=memory_scope,
             context_key=context_key,
         )
@@ -205,7 +232,13 @@ class Orchestrator:
             conversation_id=conv.id,
             skill=skill.name,
             tool_calls=tool_calls,
+            tool_results=tool_outputs,
+            provider=selected_provider,
+            model=selected_model,
             output=output_text,
+            memory_hits=len(vector_hits),
+            short_context_messages=len(short_msgs),
+            usage=final.raw.get("usage") or {},
         )
 
     async def _get_or_create_conversation(
@@ -243,16 +276,24 @@ class Orchestrator:
                 "Execution context: isolated forked skill context. Do not assume prior chat history beyond attached memory.\n\n"
             )
         if short_msgs:
-            parts.append("Short-term conversation context:\n")
+            parts.append("Recent conversation:\n")
             for m in short_msgs:
                 parts.append(f"- {m.role}: {m.content}\n")
             parts.append("\n")
-        if vector_hits:
-            parts.append("Relevant long-term memory:\n")
-            for h in vector_hits:
-                text = str(h.get("text") or "")[:800]
-                parts.append(f"- {text}\n")
+        parts.append(
+            "\nResponse rules:\n"
+            "- Answer directly and concretely.\n"
+            "- Prefer short sections over long paragraphs.\n"
+            "- If tool results were provided in the conversation, ground your answer in those results.\n"
+            "- If evidence is missing, say what is missing instead of guessing.\n"
+        )
         return "".join(parts).strip()
+
+    def _normalize_model(self, *, provider: str, model: str) -> str:
+        if provider == "openrouter":
+            normalized = model.strip().lower()
+            return self.openrouter_legacy_model_aliases.get(normalized, model)
+        return model
 
     @staticmethod
     def _format_memory_context(vector_hits: list[dict]) -> str:
@@ -271,6 +312,61 @@ class Orchestrator:
             return any(command.startswith(prefix) for prefix in prefixes)
         return True
 
+    def _fallback_tool_calls(
+        self,
+        *,
+        skill_name: str,
+        user_input: str,
+        skill_arguments: str | None,
+        permitted_tools: list[str],
+    ) -> list[ToolCall]:
+        normalized = f"{user_input}\n{skill_arguments or ''}".lower()
+        tool_set = set(permitted_tools)
+        calls: list[ToolCall] = []
+
+        if "pdf_analyze" in tool_set:
+            pdf_path = self._extract_local_path(normalized_source=user_input + "\n" + (skill_arguments or ""), suffix=".pdf")
+            if pdf_path:
+                calls.append(ToolCall(name="pdf_analyze", input={"path": pdf_path}))
+                return calls
+
+        if "deep_search" in tool_set and (
+            skill_name == "deep_research"
+            or any(term in normalized for term in ["deep research", "research", "latest", "compare", "investigate"])
+        ):
+            calls.append(ToolCall(name="deep_search", input={"query": user_input}))
+            return calls
+
+        if "web_search" in tool_set and any(
+            term in normalized for term in ["search", "look up", "find", "latest", "news", "what is", "who is"]
+        ):
+            calls.append(ToolCall(name="web_search", input={"query": user_input}))
+            return calls
+
+        if "code_analyze" in tool_set and (
+            skill_name in {"codebase_analyst", "code_assistant", "debug", "review"}
+            or any(term in normalized for term in ["codebase", "repo", "repository", "analyze code", "inspect code"])
+        ):
+            code_path = self._extract_local_path(
+                normalized_source=user_input + "\n" + (skill_arguments or ""),
+                suffix=None,
+            ) or "."
+            calls.append(ToolCall(name="code_analyze", input={"path": code_path, "query": user_input}))
+            return calls
+
+        return calls
+
+    @staticmethod
+    def _extract_local_path(*, normalized_source: str, suffix: str | None) -> str | None:
+        for token in normalized_source.replace("\n", " ").split():
+            candidate = token.strip(" ,\"'`()[]")
+            if "/" not in candidate and not candidate.startswith("."):
+                continue
+            if suffix and not candidate.lower().endswith(suffix):
+                continue
+            return candidate
+        return None
+
     async def _store_turn(
         self,
         *,
@@ -280,6 +376,9 @@ class Orchestrator:
         assistant_output: str,
         tool_calls: list[ToolCall],
         tool_outputs: list[dict],
+        skill_name: str,
+        provider: str,
+        model: str,
         memory_scope: str,
         context_key: str | None,
     ) -> None:
@@ -317,7 +416,14 @@ class Orchestrator:
             kind="turn",
             memory_scope=memory_scope,
             context_key=context_key,
-            data={"user_input": user_input, "assistant_output": assistant_output},
+            data={
+                "user_input": user_input,
+                "assistant_output": assistant_output,
+                "skill": skill_name,
+                "provider": provider,
+                "model": model,
+                "tool_count": len(tool_calls),
+            },
         )
         if tool_calls:
             await self.memory.store_structured(

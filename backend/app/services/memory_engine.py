@@ -199,7 +199,7 @@ class MemoryEngine:
         await self.session.commit()
         await self.session.refresh(memory)
 
-        add_result = self.vector_store.add(
+        await self.vector_store.add(
             user_id=user_id,
             conversation_id=conversation_id,
             text=text,
@@ -212,8 +212,6 @@ class MemoryEngine:
                 **metadata,
             },
         )
-        if hasattr(add_result, "__await__"):
-            await add_result
         return memory
 
     async def retrieve_memory(
@@ -225,16 +223,28 @@ class MemoryEngine:
         memory_scope: str = "user",
         context_key: str | None = None,
     ) -> list[RetrievedMemory]:
-        query_result = self.vector_store.query(
+        results = await self.vector_store.query(
             user_id=user_id,
             query=query,
             top_k=top_k or self.settings.vector_top_k,
             memory_scope=memory_scope,
             context_key=context_key,
         )
-        if hasattr(query_result, "__await__"):
-            return await query_result
-        return query_result
+        # Normalize dicts returned by VectorStore implementations into RetrievedMemory
+        normalized: list[RetrievedMemory] = []
+        for item in results:
+            if isinstance(item, RetrievedMemory):
+                normalized.append(item)
+            elif isinstance(item, dict):
+                normalized.append(
+                    RetrievedMemory(
+                        id=str(item.get("id", "")),
+                        text=str(item.get("text", "")),
+                        score=float(item.get("score") or 0.0),
+                        metadata=item.get("metadata") or {},
+                    )
+                )
+        return normalized
 
     async def short_term(self, *, conversation_id: uuid.UUID, user_id: uuid.UUID) -> list[Message]:
         return await self.get_short_term_memory(conversation_id=conversation_id, limit=self.short_term_max_messages)
@@ -275,7 +285,7 @@ class MemoryEngine:
         memory_scope: str = "user",
         context_key: str | None = None,
     ) -> str:
-        result = self.vector_store.add(
+        return await self.vector_store.add(
             user_id=user_id,
             conversation_id=conversation_id,
             text=text,
@@ -283,9 +293,6 @@ class MemoryEngine:
             memory_scope=memory_scope,
             context_key=context_key,
         )
-        if hasattr(result, "__await__"):
-            return await result
-        return str(result)
 
     async def store_structured(
         self,

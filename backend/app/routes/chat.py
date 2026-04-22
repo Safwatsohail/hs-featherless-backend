@@ -76,5 +76,8 @@ async def chat(payload: ChatRequest, request: Request, db: AsyncSession = Depend
         conversation_id=res.conversation_id,
         skill=res.skill,
         tool_calls=res.tool_calls,
+        tool_results=res.tool_results,
+        provider=res.provider,
+        model=res.model,
         output=res.output,
     )

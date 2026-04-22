@@ -1,0 +1,247 @@
+### VS Code REST Client Tests
+### Install "REST Client" extension by Huachao Mao
+### Then click "Send Request" above each request
+
+@baseUrl = http://localhost:8000
+@apiKey = your-api-key-here
+@userId = test-user
+
+### 1. Health Check
+GET {{baseUrl}}/healthz
+
+### 2. Create API Key
+POST {{baseUrl}}/apikey
+Content-Type: application/json
+
+{
+  "user_id": "{{userId}}",
+  "provider": "openrouter",
+  "api_key": "sk-or-v1-your-openrouter-key"
+}
+
+### 3. List Available Skills (should show 1,080+ skills)
+GET {{baseUrl}}/skills
+Authorization: Bearer {{apiKey}}
+
+### 4. List Available Tools (should show 50+ tools)
+GET {{baseUrl}}/tools
+Authorization: Bearer {{apiKey}}
+
+### 5. Simple Chat Request (Enhanced API)
+POST {{baseUrl}}/v1/run
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "input": "Debug my Python API performance issues",
+  "user_id": "{{userId}}",
+  "memory_scope": "workspace",
+  "context_key": "test-project"
+}
+
+### 6. Chat with Specific Skill
+POST {{baseUrl}}/v1/run
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "input": "Analyze this React component for performance",
+  "user_id": "{{userId}}",
+  "skill_name": "frontend_debug",
+  "memory_scope": "workspace",
+  "context_key": "my-react-app"
+}
+
+### 7. Research with Web Search
+POST {{baseUrl}}/v1/run
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "input": "What are the latest React 19 features?",
+  "user_id": "{{userId}}",
+  "memory_scope": "user"
+}
+
+### 8. Code Analysis
+POST {{baseUrl}}/v1/run
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "input": "Review this Python code for security issues: def login(username, password): return db.execute(f'SELECT * FROM users WHERE username={username}')",
+  "user_id": "{{userId}}",
+  "memory_scope": "workspace",
+  "context_key": "security-review"
+}
+
+### 9. Store Memory
+POST {{baseUrl}}/v1/memory
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "user_id": "{{userId}}",
+  "text": "User prefers concise JSON responses",
+  "kind": "preference",
+  "memory_scope": "user",
+  "metadata": {
+    "source": "manual"
+  }
+}
+
+### 10. Retrieve Memory Context
+GET {{baseUrl}}/v1/memory/context?user_id={{userId}}&memory_scope=user&query=preferences
+Authorization: Bearer {{apiKey}}
+
+### 11. Run Specific Tool
+POST {{baseUrl}}/v1/tools/web_search
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "query": "Python async best practices 2024"
+}
+
+### 12. Streaming Request (copy URL to browser or use EventSource)
+# Open in browser: http://localhost:8000/stream/chat
+# Or use the frontend for visual streaming
+
+### 13. Compare: Normal OpenRouter vs Enhanced
+# First, run normal OpenRouter (replace with your key):
+POST https://openrouter.ai/api/v1/chat/completions
+Authorization: Bearer sk-or-v1-your-key
+Content-Type: application/json
+HTTP-Referer: http://localhost
+X-Title: API Test
+
+{
+  "model": "openrouter/free",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Debug my Python API performance issues"
+    }
+  ]
+}
+
+### Then run Enhanced API (same prompt):
+POST {{baseUrl}}/v1/run
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "input": "Debug my Python API performance issues",
+  "user_id": "{{userId}}",
+  "memory_scope": "workspace",
+  "context_key": "test-project"
+}
+
+### 14. Test Cross-API-Key Memory
+# Create second API key
+POST {{baseUrl}}/apikey
+Content-Type: application/json
+
+{
+  "user_id": "{{userId}}",
+  "provider": "openrouter",
+  "api_key": "sk-or-v1-second-key"
+}
+
+# Use first API key to store preference
+POST {{baseUrl}}/v1/run
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "input": "Remember: I prefer JSON responses",
+  "user_id": "{{userId}}",
+  "memory_scope": "user"
+}
+
+# Use second API key - should remember preference
+POST {{baseUrl}}/v1/run
+Authorization: Bearer sk-or-v1-second-key
+Content-Type: application/json
+
+{
+  "input": "Show me user statistics",
+  "user_id": "{{userId}}",
+  "memory_scope": "user"
+}
+
+### 15. Test Skill Routing Accuracy
+POST {{baseUrl}}/v1/run
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "input": "Write a SQL query to find top 10 customers by revenue",
+  "user_id": "{{userId}}"
+}
+# Should route to: database_* or sql_* skill
+
+### 16. Test Tool Execution
+POST {{baseUrl}}/v1/run
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "input": "Search for the latest TypeScript 5.3 features and summarize",
+  "user_id": "{{userId}}"
+}
+# Should execute: web_search tool
+
+### 17. Test Complex Task with Multiple Tools
+POST {{baseUrl}}/v1/run
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "input": "Research GraphQL vs REST performance, analyze the trade-offs, and recommend which to use for a high-traffic API",
+  "user_id": "{{userId}}",
+  "memory_scope": "workspace",
+  "context_key": "architecture-decisions"
+}
+# Should execute: web_search, deep_search
+# Should route to: backend_architect or research skill
+
+### 18. Test Memory Persistence
+# First request
+POST {{baseUrl}}/v1/run
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "input": "I'm working on an e-commerce platform using Next.js and PostgreSQL",
+  "user_id": "{{userId}}",
+  "memory_scope": "workspace",
+  "context_key": "my-ecommerce-project"
+}
+
+# Second request (should remember context)
+POST {{baseUrl}}/v1/run
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "input": "How should I optimize the database queries?",
+  "user_id": "{{userId}}",
+  "memory_scope": "workspace",
+  "context_key": "my-ecommerce-project"
+}
+# Should remember: Next.js + PostgreSQL context
+
+### 19. Test Cost Tracking
+POST {{baseUrl}}/v1/run
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "input": "Explain how async/await works in JavaScript",
+  "user_id": "{{userId}}"
+}
+# Check response.usage for cost tracking
+
+### 20. Batch Test - Run Multiple Requests
+# You can select multiple requests and click "Send Request" for each

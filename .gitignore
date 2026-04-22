@@ -1,14 +1,107 @@
-.venv/
+# Python
 __pycache__/
-*.pyc
-.pytest_cache/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+backend.log
+frontend.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 .DS_Store
 
-backend/.env
-backend/.chroma/
-backend/chroma/
-backend/*.sqlite3
-backend/*.db
-backend/img4265_fixed.png
-backend/img4265_sips.jpg
+# Process IDs
+*.pid
+.backend.pid
+.frontend.pid
 
+# Chroma vector store
+backend/chroma_data/
+
+# Test files
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Alembic
+backend/alembic/versions/*.py
+!backend/alembic/versions/.gitkeep
+
+# Images (if not needed)
+*.png
+*.jpg
+*.jpeg
+*.gif
+!backend/img4265_fixed.png
+!backend/img4265_sips.jpg
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Node modules (if frontend uses npm)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build outputs
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~

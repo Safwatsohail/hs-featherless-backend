@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.models import Skill
+from backend.app.services.skill_generator import GENERATED_SKILL_CATALOG
 
 
 @dataclass(frozen=True)
@@ -23,6 +24,7 @@ class BuiltinSkillDefinition:
 
 
 BUILTIN_SKILLS: list[BuiltinSkillDefinition] = [
+    # Core fallback and essential skills
     BuiltinSkillDefinition(
         name="default",
         description="General assistant fallback for requests that do not map to a specialized skill.",
@@ -44,6 +46,85 @@ BUILTIN_SKILLS: list[BuiltinSkillDefinition] = [
             "compose": [],
             "builtin": True,
             "_skill_config": {"invocation_mode": "auto", "context_mode": "inline"},
+        },
+    ),
+    # Hidden composed skills for system behavior
+    BuiltinSkillDefinition(
+        name="api-orchestration-standards",
+        description="Hidden background knowledge for provider-agnostic AI orchestration behavior.",
+        version="1.0.0",
+        triggers=[],
+        when_to_use="Use as hidden background guidance for this backend's orchestration, centralized memory, and provider routing.",
+        argument_hint=None,
+        prompt_template=(
+            "Platform rules:\n"
+            "- Treat upstream providers as interchangeable execution backends.\n"
+            "- Use the small decision model for routing and tool planning where possible.\n"
+            "- Reuse centralized memory via memory_scope and context_key.\n"
+            "- Prefer compact prompts and deterministic tool usage.\n"
+        ),
+        tool_permissions=[],
+        memory_rules={
+            "short_term": False,
+            "vector_store": False,
+            "structured": False,
+            "compose": [],
+            "builtin": True,
+            "_skill_config": {"invocation_mode": "hidden", "context_mode": "inline"},
+        },
+    ),
+    BuiltinSkillDefinition(
+        name="safe-workflow-rules",
+        description="Hidden safety rules for side-effecting workflow skills.",
+        version="1.0.0",
+        triggers=[],
+        when_to_use="Use as hidden background guidance for manual workflow skills that can run commands or modify state.",
+        argument_hint=None,
+        prompt_template=(
+            "Workflow safety rules:\n"
+            "- Execute only commands allowed by the active skill's tool rules.\n"
+            "- Refuse the workflow when required arguments are missing.\n"
+            "- Report what was run and why.\n"
+        ),
+        tool_permissions=[],
+        memory_rules={
+            "short_term": False,
+            "vector_store": False,
+            "structured": False,
+            "compose": [],
+            "builtin": True,
+            "_skill_config": {"invocation_mode": "hidden", "context_mode": "inline"},
+        },
+    ),
+    # Manual workflow skills
+    BuiltinSkillDefinition(
+        name="commit",
+        description="Manual workflow skill to create a git commit with a provided message.",
+        version="1.0.0",
+        triggers=["commit"],
+        when_to_use="Use only when the user explicitly wants a git commit to be created.",
+        argument_hint="[commit-message]",
+        prompt_template=(
+            "You are the commit workflow skill.\n"
+            "Use the provided arguments as the commit message: {skill_arguments}\n"
+            "1. Inspect git status.\n"
+            "2. Stage tracked changes that belong in this commit.\n"
+            "3. Create a commit with the provided message.\n"
+            "4. Return the commit summary.\n"
+        ),
+        tool_permissions=["bash"],
+        memory_rules={
+            "short_term": True,
+            "vector_store": False,
+            "structured": True,
+            "compose": ["safe-workflow-rules"],
+            "builtin": True,
+            "_skill_config": {
+                "invocation_mode": "manual",
+                "context_mode": "fork",
+                "argument_hint": "[commit-message]",
+                "tool_rules": {"bash": {"command_prefixes": ["git status", "git add ", "git commit "]}},
+            },
         },
     ),
     BuiltinSkillDefinition(
@@ -492,6 +573,130 @@ BUILTIN_SKILLS: list[BuiltinSkillDefinition] = [
     ),
 ]
 
+# Convert generated skills from skill_generator to BuiltinSkillDefinition format
+for generated_skill in GENERATED_SKILL_CATALOG:
+    BUILTIN_SKILLS.append(
+        BuiltinSkillDefinition(
+            name=generated_skill.name,
+            description=generated_skill.description,
+            version=generated_skill.version,
+            triggers=generated_skill.triggers,
+            when_to_use=generated_skill.when_to_use,
+            argument_hint=generated_skill.argument_hint,
+            prompt_template=generated_skill.prompt_template,
+            tool_permissions=generated_skill.tool_permissions,
+            memory_rules=generated_skill.memory_rules,
+        )
+    )
+
+
+SKILL_DOMAINS: list[dict[str, str | list[str]]] = [
+    {"slug": "product", "label": "product", "keywords": ["product", "feature", "roadmap"]},
+    {"slug": "engineering", "label": "engineering", "keywords": ["engineering", "system", "backend"]},
+    {"slug": "frontend", "label": "frontend", "keywords": ["frontend", "ui", "component"]},
+    {"slug": "backend", "label": "backend", "keywords": ["backend", "api", "server"]},
+    {"slug": "devops", "label": "devops", "keywords": ["deploy", "infra", "ops"]},
+    {"slug": "security", "label": "security", "keywords": ["security", "audit", "vulnerability"]},
+    {"slug": "data", "label": "data", "keywords": ["data", "dataset", "analytics"]},
+    {"slug": "sql", "label": "sql", "keywords": ["sql", "database", "query"]},
+    {"slug": "research", "label": "research", "keywords": ["research", "latest", "compare"]},
+    {"slug": "growth", "label": "growth", "keywords": ["growth", "experiment", "acquisition"]},
+    {"slug": "marketing", "label": "marketing", "keywords": ["marketing", "campaign", "positioning"]},
+    {"slug": "sales", "label": "sales", "keywords": ["sales", "prospect", "pipeline"]},
+    {"slug": "support", "label": "support", "keywords": ["support", "ticket", "customer"]},
+    {"slug": "success", "label": "customer-success", "keywords": ["success", "retention", "customer"]},
+    {"slug": "finance", "label": "finance", "keywords": ["finance", "cost", "forecast"]},
+    {"slug": "legal", "label": "legal", "keywords": ["legal", "policy", "contract"]},
+    {"slug": "hr", "label": "hr", "keywords": ["hiring", "people", "recruiting"]},
+    {"slug": "education", "label": "education", "keywords": ["teach", "learn", "curriculum"]},
+    {"slug": "docs", "label": "documentation", "keywords": ["docs", "documentation", "guide"]},
+    {"slug": "content", "label": "content", "keywords": ["content", "blog", "post"]},
+    {"slug": "seo", "label": "seo", "keywords": ["seo", "search ranking", "keyword"]},
+    {"slug": "design", "label": "design", "keywords": ["design", "ux", "visual"]},
+    {"slug": "mobile", "label": "mobile", "keywords": ["mobile", "ios", "android"]},
+    {"slug": "qa", "label": "quality assurance", "keywords": ["qa", "test", "regression"]},
+    {"slug": "automation", "label": "automation", "keywords": ["automation", "workflow", "efficiency"]},
+    {"slug": "api", "label": "api", "keywords": ["api", "endpoint", "integration"]},
+    {"slug": "startup", "label": "startup", "keywords": ["startup", "pitch", "traction"]},
+    {"slug": "operations", "label": "operations", "keywords": ["operations", "process", "runbook"]},
+]
+
+SKILL_PATTERNS: list[dict[str, str]] = [
+    {"slug": "summarizer", "verb": "summarize", "description": "Summarize", "instruction": "Produce a concise summary with the most important points."},
+    {"slug": "reviewer", "verb": "review", "description": "Review", "instruction": "Review critically and prioritize findings, risks, and missing pieces."},
+    {"slug": "planner", "verb": "plan", "description": "Plan", "instruction": "Turn the request into a concrete ordered plan with assumptions and next steps."},
+    {"slug": "analyst", "verb": "analyze", "description": "Analyze", "instruction": "Analyze the request deeply and return structured conclusions."},
+    {"slug": "writer", "verb": "write", "description": "Write", "instruction": "Draft polished content tailored to the requested audience and goal."},
+    {"slug": "explainer", "verb": "explain", "description": "Explain", "instruction": "Explain clearly and with practical examples where useful."},
+    {"slug": "extractor", "verb": "extract", "description": "Extract", "instruction": "Extract the most important entities, facts, and structured fields."},
+    {"slug": "comparator", "verb": "compare", "description": "Compare", "instruction": "Compare options directly and call out tradeoffs."},
+    {"slug": "optimizer", "verb": "optimize", "description": "Optimize", "instruction": "Optimize for speed, cost, clarity, and execution quality."},
+    {"slug": "strategist", "verb": "strategize", "description": "Strategize", "instruction": "Build a pragmatic strategy with sequencing and tradeoffs."},
+    {"slug": "auditor", "verb": "audit", "description": "Audit", "instruction": "Audit the request thoroughly and highlight risks, gaps, and compliance concerns."},
+]
+
+
+def _domain_tools(domain_slug: str, pattern_slug: str) -> list[str]:
+    tools: list[str] = []
+    if domain_slug in {"research", "marketing", "seo", "sales", "growth", "legal", "finance", "startup"}:
+        tools.extend(["web_search", "deep_search", "url_fetch"])
+    if domain_slug in {"engineering", "backend", "frontend", "mobile", "qa", "automation", "api"}:
+        tools.extend(["code_analyze", "python"])
+    if domain_slug in {"sql", "finance", "data"}:
+        tools.append("db_query")
+    if domain_slug in {"docs", "content", "education"} and pattern_slug in {"extractor", "summarizer", "analyst"}:
+        tools.append("url_fetch")
+    if domain_slug in {"operations", "devops"} and pattern_slug in {"planner", "optimizer", "auditor"}:
+        tools.append("bash")
+    return list(dict.fromkeys(tools))
+
+
+def _generated_memory_rules(domain_slug: str, pattern_slug: str) -> dict:
+    return {
+        "short_term": True,
+        "vector_store": pattern_slug not in {"summarizer", "extractor"},
+        "structured": True,
+        "compose": ["api-orchestration-standards"] if domain_slug in {"api", "automation", "operations"} else [],
+        "builtin": True,
+        "_skill_config": {"invocation_mode": "auto", "context_mode": "inline"},
+    }
+
+
+def _build_generated_skills() -> list[BuiltinSkillDefinition]:
+    generated: list[BuiltinSkillDefinition] = []
+    existing_names = {skill.name for skill in BUILTIN_SKILLS}
+    for domain in SKILL_DOMAINS:
+        domain_slug = str(domain["slug"])
+        domain_label = str(domain["label"])
+        keywords = [str(item) for item in domain["keywords"]]
+        for pattern in SKILL_PATTERNS:
+            name = f"{domain_slug}_{pattern['slug']}"
+            if name in existing_names:
+                continue
+            generated.append(
+                BuiltinSkillDefinition(
+                    name=name,
+                    description=f"{pattern['description']} {domain_label} requests with a reusable workflow.",
+                    version="1.0.0",
+                    triggers=[pattern["verb"], domain_label, *keywords[:2]],
+                    when_to_use=f"Use when the request is about {domain_label} and needs a {pattern['description'].lower()} workflow.",
+                    argument_hint=None,
+                    prompt_template=(
+                        f"You are the {name} skill.\\n"
+                        f"{pattern['instruction']}\\n"
+                        f"Keep the answer focused on {domain_label} outcomes.\\n"
+                        "User input: {user_input}\\n"
+                        "Memory context: {memory_context}\\n"
+                    ),
+                    tool_permissions=_domain_tools(domain_slug, str(pattern["slug"])),
+                    memory_rules=_generated_memory_rules(domain_slug, str(pattern["slug"])),
+                )
+            )
+    return generated
+
+
+BUILTIN_SKILLS.extend(_build_generated_skills())
+
 
 class SkillEngine:
     def __init__(self, session: AsyncSession) -> None:
@@ -638,3 +843,4 @@ class SkillEngine:
             key=lambda item: tuple(int(part) for part in item.version.split(".")),
             reverse=True,
         )[0]
+

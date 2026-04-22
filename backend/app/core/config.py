@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Literal
+import uuid
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -32,6 +33,8 @@ class Settings(BaseSettings):
     chroma_persist_dir: Path = Field(default=Path("./.chroma"), alias="CHROMA_PERSIST_DIR")
     short_term_max_messages: int = Field(default=20, alias="SHORT_TERM_MAX_MESSAGES")
     vector_top_k: int = Field(default=3, alias="VECTOR_TOP_K")
+    
+    redis_url: str | None = Field(default=None, alias="REDIS_URL")
 
     default_llm_provider: Literal["openai", "anthropic", "openrouter"] = Field(
         default="openai", alias="DEFAULT_LLM_PROVIDER"
@@ -48,6 +51,13 @@ class Settings(BaseSettings):
     openrouter_base_url: str = Field(
         default="https://openrouter.ai/api/v1", alias="OPENROUTER_BASE_URL"
     )
+    test_mode_enabled: bool = Field(default=False, alias="TEST_MODE_ENABLED")
+    test_default_provider: Literal["openai", "anthropic", "openrouter"] | None = Field(
+        default=None, alias="TEST_DEFAULT_PROVIDER"
+    )
+    test_default_api_key: str | None = Field(default=None, alias="TEST_DEFAULT_API_KEY")
+    test_default_aurora_key: str | None = Field(default=None, alias="TEST_DEFAULT_AURORA_KEY")
+    test_default_user_id: uuid.UUID | None = Field(default=None, alias="TEST_DEFAULT_USER_ID")
 
     python_tool_timeout_seconds: int = Field(default=3, alias="PYTHON_TOOL_TIMEOUT_SECONDS")
     bash_tool_timeout_seconds: int = Field(default=10, alias="BASH_TOOL_TIMEOUT_SECONDS")

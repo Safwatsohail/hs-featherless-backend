@@ -178,7 +178,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Interactive backend API test console.")
     parser.add_argument("--base-url", default="http://127.0.0.1:8000")
     parser.add_argument("--provider", default="openrouter", choices=["openai", "anthropic", "openrouter"])
-    parser.add_argument("--model", default="meta-llama/llama-3.3-8b-instruct:free")
+    parser.add_argument("--model", default="openrouter/free")
     parser.add_argument("--user-id", default=str(uuid.uuid4()))
     parser.add_argument("--memory-scope", default="workspace", choices=["conversation", "user", "workspace", "global"])
     parser.add_argument("--context-key", default="backend-test")
@@ -222,4 +222,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
