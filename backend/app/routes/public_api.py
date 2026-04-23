@@ -70,6 +70,7 @@ def _build_orchestrator(*, request: Request, db: AsyncSession) -> Orchestrator:
         llm_base_urls={
             "openai": settings.openai_base_url,
             "anthropic": settings.anthropic_base_url,
+            "featherless": settings.featherless_base_url,
             "openrouter": settings.openrouter_base_url,
         },
         default_provider=settings.default_llm_provider,

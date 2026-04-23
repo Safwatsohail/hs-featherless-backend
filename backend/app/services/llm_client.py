@@ -207,6 +207,8 @@ class LLMClient:
         return response.json()
 
     def _resolve_openai_compatible_base_url(self, provider_name: str) -> str:
+        if provider_name == "featherless":
+            return self.base_url or self.settings.featherless_base_url
         if provider_name == "openrouter":
             return self.base_url or self.settings.openrouter_base_url
         return self.base_url or self.settings.openai_base_url

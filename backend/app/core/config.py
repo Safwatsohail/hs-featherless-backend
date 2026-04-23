@@ -36,11 +36,11 @@ class Settings(BaseSettings):
     
     redis_url: str | None = Field(default=None, alias="REDIS_URL")
 
-    default_llm_provider: Literal["openai", "anthropic", "openrouter"] = Field(
-        default="openai", alias="DEFAULT_LLM_PROVIDER"
+    default_llm_provider: Literal["openai", "anthropic", "featherless", "openrouter"] = Field(
+        default="featherless", alias="DEFAULT_LLM_PROVIDER"
     )
     default_llm_model: str = Field(default="gpt-4.1-mini", alias="DEFAULT_LLM_MODEL")
-    decision_llm_provider: Literal["openai", "anthropic", "openrouter"] | None = Field(
+    decision_llm_provider: Literal["openai", "anthropic", "featherless", "openrouter"] | None = Field(
         default=None, alias="DECISION_LLM_PROVIDER"
     )
     decision_llm_model: str = Field(default="gpt-4.1-nano", alias="DECISION_LLM_MODEL")
@@ -48,11 +48,14 @@ class Settings(BaseSettings):
     anthropic_base_url: str = Field(
         default="https://api.anthropic.com", alias="ANTHROPIC_BASE_URL"
     )
+    featherless_base_url: str = Field(
+        default="https://api.featherless.ai/v1", alias="FEATHERLESS_BASE_URL"
+    )
     openrouter_base_url: str = Field(
         default="https://openrouter.ai/api/v1", alias="OPENROUTER_BASE_URL"
     )
     test_mode_enabled: bool = Field(default=False, alias="TEST_MODE_ENABLED")
-    test_default_provider: Literal["openai", "anthropic", "openrouter"] | None = Field(
+    test_default_provider: Literal["openai", "anthropic", "featherless", "openrouter"] | None = Field(
         default=None, alias="TEST_DEFAULT_PROVIDER"
     )
     test_default_api_key: str | None = Field(default=None, alias="TEST_DEFAULT_API_KEY")

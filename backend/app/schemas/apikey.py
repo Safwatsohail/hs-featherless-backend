@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 class ApiKeySaveRequest(BaseModel):
     user_id: uuid.UUID
-    provider: Literal["openai", "anthropic", "openrouter"]
+    provider: Literal["openai", "anthropic", "featherless", "openrouter"]
     api_key: str = Field(min_length=5)
 
 
