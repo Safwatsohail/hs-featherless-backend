@@ -428,7 +428,7 @@
             .replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
                 const language = lang || 'text';
                 const highlighted = highlightCode(code.trim(), language);
-                return '<div class="code-block"><div class="code-header"><span class="code-lang">' + language + '</span><button class="copy-btn" onclick="copyToClipboard(this)" data-code="' + encodeURIComponent(code.trim()) + '">📋</button></div><pre class="code-content"><code class="language-' + language + '">' + highlighted + '</code></pre></div>';
+                return '<div class="code-block-container"><div class="code-block-header"><span class="code-block-lang">' + language.toUpperCase() + '</span><button class="code-copy-btn" onclick="copyCodeBlock(this)" data-code="' + encodeURIComponent(code.trim()) + '">Copy</button></div><pre class="code-block-content"><code>' + highlighted + '</code></pre></div>';
             })
             // Inline code
             .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
@@ -448,50 +448,68 @@
     }
 
     function highlightCode(code, language) {
-        // Basic syntax highlighting for common languages
+        // Enhanced syntax highlighting for common languages
         if (!code) return '';
         
-        const patterns = {
-            javascript: {
-                keywords: /\b(const|let|var|function|return|if|else|for|while|async|await|try|catch|throw|new|class|extends|import|export|default)\b/g,
-                strings: /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g,
-                comments: /\/\/.*$/gm,
-                numbers: /\b\d+\.?\d*\b/g
-            },
-            python: {
-                keywords: /\b(def|class|if|elif|else|for|while|try|except|finally|import|from|return|yield|async|await|with|as|lambda|pass|break|continue|global|nonlocal)\b/g,
-                strings: /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g,
-                comments: /#.*$/gm,
-                numbers: /\b\d+\.?\d*\b/g
-            },
-            typescript: {
-                keywords: /\b(interface|type|enum|declare|const|let|var|function|return|if|else|for|while|async|await|try|catch|throw|new|class|extends|implements|import|export|default|public|private|protected)\b/g,
-                strings: /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g,
-                comments: /\/\/.*$/gm,
-                numbers: /\b\d+\.?\d*\b/g
-            }
-        };
+        // Escape HTML first
+        let highlighted = code
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
         
-        const lang = patterns[language.toLowerCase()] || patterns.text;
-        let highlighted = code;
+        const lang = language.toLowerCase();
         
-        // Apply syntax highlighting
-        if (lang.keywords) {
+        if (lang === 'python') {
+            // Python syntax highlighting
             highlighted = highlighted
-                .replace(lang.keywords, '<span class="syntax-keyword">$1</span>')
-                .replace(lang.strings, '<span class="syntax-string">$1</span>')
-                .replace(lang.comments, '<span class="syntax-comment">$1</span>')
-                .replace(lang.numbers, '<span class="syntax-number">$1</span>');
+                // Comments (must be first to avoid highlighting keywords in comments)
+                .replace(/(#.*$)/gm, '<span class="syntax-comment">$1</span>')
+                // Strings (triple quotes first, then single/double)
+                .replace(/("""[\s\S]*?"""|'''[\s\S]*?''')/g, '<span class="syntax-string">$1</span>')
+                .replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, '<span class="syntax-string">$1</span>')
+                // Keywords
+                .replace(/\b(def|class|if|elif|else|for|while|try|except|finally|import|from|return|yield|async|await|with|as|lambda|pass|break|continue|global|nonlocal|raise|assert|del|in|is|not|and|or)\b/g, '<span class="syntax-keyword">$1</span>')
+                // Built-in functions
+                .replace(/\b(print|input|len|range|str|int|float|list|dict|set|tuple|bool|type|isinstance|enumerate|zip|map|filter|sum|max|min|abs|round|sorted|reversed|open|read|write|close)\b/g, '<span class="syntax-builtin">$1</span>')
+                // Function definitions (def function_name)
+                .replace(/\b(def)\s+([a-zA-Z_][a-zA-Z0-9_]*)/g, '<span class="syntax-keyword">$1</span> <span class="syntax-function">$2</span>')
+                // Class definitions (class ClassName)
+                .replace(/\b(class)\s+([a-zA-Z_][a-zA-Z0-9_]*)/g, '<span class="syntax-keyword">$1</span> <span class="syntax-class">$2</span>')
+                // Numbers
+                .replace(/\b(\d+\.?\d*)\b/g, '<span class="syntax-number">$1</span>')
+                // Boolean and None
+                .replace(/\b(True|False|None)\b/g, '<span class="syntax-constant">$1</span>');
+                
+        } else if (lang === 'javascript' || lang === 'js') {
+            // JavaScript syntax highlighting
+            highlighted = highlighted
+                .replace(/(\/\/.*$)/gm, '<span class="syntax-comment">$1</span>')
+                .replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="syntax-comment">$1</span>')
+                .replace(/(`(?:[^`\\]|\\.)*`|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, '<span class="syntax-string">$1</span>')
+                .replace(/\b(const|let|var|function|return|if|else|for|while|async|await|try|catch|throw|new|class|extends|import|export|default|case|switch|break|continue)\b/g, '<span class="syntax-keyword">$1</span>')
+                .replace(/\b(console|document|window|Array|Object|String|Number|Boolean|Math|Date|JSON|Promise|setTimeout|setInterval)\b/g, '<span class="syntax-builtin">$1</span>')
+                .replace(/\b(\d+\.?\d*)\b/g, '<span class="syntax-number">$1</span>')
+                .replace(/\b(true|false|null|undefined)\b/g, '<span class="syntax-constant">$1</span>');
+                
+        } else if (lang === 'typescript' || lang === 'ts') {
+            // TypeScript syntax highlighting
+            highlighted = highlighted
+                .replace(/(\/\/.*$)/gm, '<span class="syntax-comment">$1</span>')
+                .replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="syntax-comment">$1</span>')
+                .replace(/(`(?:[^`\\]|\\.)*`|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, '<span class="syntax-string">$1</span>')
+                .replace(/\b(interface|type|enum|declare|const|let|var|function|return|if|else|for|while|async|await|try|catch|throw|new|class|extends|implements|import|export|default|public|private|protected|readonly)\b/g, '<span class="syntax-keyword">$1</span>')
+                .replace(/\b(\d+\.?\d*)\b/g, '<span class="syntax-number">$1</span>')
+                .replace(/\b(true|false|null|undefined)\b/g, '<span class="syntax-constant">$1</span>');
         }
         
         return highlighted;
     }
 
-    function copyToClipboard(button) {
+    function copyCodeBlock(button) {
         const code = decodeURIComponent(button.getAttribute('data-code'));
         navigator.clipboard.writeText(code).then(() => {
             const originalText = button.textContent;
-            button.textContent = '✓ Copied!';
+            button.textContent = '✓ Copied';
             button.classList.add('copied');
             setTimeout(() => {
                 button.textContent = originalText;
@@ -499,6 +517,8 @@
             }, 2000);
         });
     }
+    // Make it globally available for onclick
+    window.copyCodeBlock = copyCodeBlock;
 
     async function runCompare() {
         const q = (compareInput?.value || "").trim();

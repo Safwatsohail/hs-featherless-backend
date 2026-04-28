@@ -315,13 +315,18 @@ class Orchestrator:
             parts.append("\n")
         parts.append(
             "\nResponse rules:\n"
-            "- Answer directly and concretely.\n"
-            "- Do NOT include your thinking process or internal reasoning.\n"
-            "- Do NOT say things like 'I'm just a text-based model' or 'Here's my response'.\n"
-            "- Just provide the answer directly without meta-commentary.\n"
-            "- Prefer short sections over long paragraphs.\n"
-            "- If tool results were provided in the conversation, ground your answer in those results.\n"
-            "- If evidence is missing, say what is missing instead of guessing.\n"
+            "- Provide comprehensive, detailed, and insightful answers that demonstrate deep expertise.\n"
+            "- Use specific examples, data points, and concrete details whenever possible.\n"
+            "- Structure responses with clear sections using markdown formatting (headers, lists, code blocks).\n"
+            "- When providing code examples, include complete, working implementations with proper syntax highlighting.\n"
+            "- Do NOT include meta-commentary like 'I'm just a text-based model' or 'Here's my response'.\n"
+            "- Do NOT show your thinking process - just provide the polished final answer.\n"
+            "- If tool results were provided, synthesize them into a cohesive, well-structured response.\n"
+            "- For technical questions, provide production-ready solutions with best practices.\n"
+            "- For comparisons, create detailed side-by-side analyses with pros/cons.\n"
+            "- For explanations, break down complex topics into digestible sections with examples.\n"
+            "- If evidence is missing, clearly state what additional information would be needed.\n"
+            "- Aim for responses that are 10x more valuable than a basic answer.\n"
         )
         return "".join(parts).strip()
 
