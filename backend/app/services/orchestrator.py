@@ -308,25 +308,89 @@ class Orchestrator:
             parts.append(
                 "Execution context: isolated forked skill context. Do not assume prior chat history beyond attached memory.\n\n"
             )
-        if short_msgs:
-            parts.append("Recent conversation:\n")
-            for m in short_msgs:
-                parts.append(f"- {m.role}: {m.content}\n")
+        
+        # Add memory context if available
+        if vector_hits:
+            parts.append("=== MEMORY CONTEXT (use this to personalize your response) ===\n")
+            for hit in vector_hits[:5]:  # Top 5 most relevant memories
+                text = hit.get("text", "")
+                score = hit.get("score", 0)
+                if text and score > 0.5:  # Only include relevant memories
+                    parts.append(f"• {text}\n")
             parts.append("\n")
+        
+        if short_msgs:
+            parts.append("=== RECENT CONVERSATION ===\n")
+            for m in short_msgs[-5:]:  # Last 5 messages for context
+                parts.append(f"{m.role}: {m.content[:200]}\n")
+            parts.append("\n")
+        
         parts.append(
-            "\nResponse rules:\n"
-            "- Provide comprehensive, detailed, and insightful answers that demonstrate deep expertise.\n"
-            "- Use specific examples, data points, and concrete details whenever possible.\n"
-            "- Structure responses with clear sections using markdown formatting (headers, lists, code blocks).\n"
-            "- When providing code examples, include complete, working implementations with proper syntax highlighting.\n"
-            "- Do NOT include meta-commentary like 'I'm just a text-based model' or 'Here's my response'.\n"
-            "- Do NOT show your thinking process - just provide the polished final answer.\n"
-            "- If tool results were provided, synthesize them into a cohesive, well-structured response.\n"
-            "- For technical questions, provide production-ready solutions with best practices.\n"
-            "- For comparisons, create detailed side-by-side analyses with pros/cons.\n"
-            "- For explanations, break down complex topics into digestible sections with examples.\n"
-            "- If evidence is missing, clearly state what additional information would be needed.\n"
-            "- Aim for responses that are 10x more valuable than a basic answer.\n"
+            "\n=== RESPONSE EXCELLENCE GUIDELINES ===\n"
+            "You are an elite AI assistant with access to powerful tools and comprehensive memory.\n"
+            "Your responses should be 10x better than standard AI responses.\n\n"
+            
+            "CRITICAL: CODE FORMATTING RULES (MUST FOLLOW):\n"
+            "- ALWAYS wrap code in proper markdown code blocks with language identifier\n"
+            "- Format: ```python\\n[code here]\\n```\n"
+            "- NEVER describe code in English paragraphs\n"
+            "- NEVER say 'here is the code' or 'the function would look like'\n"
+            "- ALWAYS provide actual, executable code with proper indentation\n"
+            "- Use 4 spaces for Python indentation (not tabs)\n"
+            "- Include proper syntax highlighting language tag (python, javascript, typescript, etc.)\n\n"
+            
+            "EXAMPLE - CORRECT:\n"
+            "```python\n"
+            "def fibonacci(n):\n"
+            "    if n <= 1:\n"
+            "        return n\n"
+            "    return fibonacci(n-1) + fibonacci(n-2)\n"
+            "```\n\n"
+            
+            "EXAMPLE - WRONG (DO NOT DO THIS):\n"
+            "The function would calculate fibonacci by checking if n is less than or equal to 1...\n\n"
+            
+            "CORE PRINCIPLES:\n"
+            "1. PERSONALIZATION: Use memory context to tailor responses to the user's specific situation\n"
+            "2. DEPTH: Provide comprehensive, detailed answers with specific examples and data\n"
+            "3. STRUCTURE: Use markdown formatting (headers, lists, code blocks, tables) for clarity\n"
+            "4. ACTIONABILITY: Give concrete, implementable solutions with step-by-step guidance\n"
+            "5. INTELLIGENCE: Synthesize information from multiple sources and tools\n\n"
+            
+            "RESPONSE FORMAT:\n"
+            "- Start with a direct answer to the question\n"
+            "- Use ## headers to organize sections\n"
+            "- Include code examples in ```language blocks with proper syntax\n"
+            "- Use bullet points for lists and key points\n"
+            "- Add tables for comparisons when relevant\n"
+            "- Include specific numbers, metrics, and data points\n"
+            "- Cite sources when using tool results\n\n"
+            
+            "QUALITY STANDARDS:\n"
+            "- Production-ready code (not pseudocode or descriptions)\n"
+            "- Best practices and modern patterns\n"
+            "- Security and performance considerations\n"
+            "- Error handling and edge cases\n"
+            "- Clear explanations of complex concepts\n"
+            "- Real-world examples and use cases\n\n"
+            
+            "TOOL USAGE:\n"
+            "- If tool results are provided, integrate them seamlessly into your response\n"
+            "- Synthesize multiple tool outputs into a cohesive answer\n"
+            "- Cite specific data points from tool results\n"
+            "- Explain how the tool results answer the question\n\n"
+            
+            "WHAT TO AVOID:\n"
+            "- Meta-commentary about being an AI or your limitations\n"
+            "- Phrases like 'Here's my response' or 'I'm just a text-based model'\n"
+            "- Vague or generic answers without specifics\n"
+            "- Incomplete code examples or pseudocode\n"
+            "- Describing code in English instead of showing actual code\n"
+            "- Apologizing for not having information (just state what's needed)\n\n"
+            
+            "REMEMBER: You have access to tools, memory, and skills. Use them to provide\n"
+            "responses that are comprehensive, personalized, and 10x more valuable than basic answers.\n"
+            "When asked for code, ALWAYS provide actual code in proper markdown code blocks.\n"
         )
         return "".join(parts).strip()
 
@@ -361,28 +425,108 @@ class Orchestrator:
         skill_arguments: str | None,
         permitted_tools: list[str],
     ) -> list[ToolCall]:
+        """
+        Intelligent fallback tool selection based on user intent.
+        This ensures we ALWAYS use tools when they could be helpful.
+        """
         normalized = f"{user_input}\n{skill_arguments or ''}".lower()
         tool_set = set(permitted_tools)
         calls: list[ToolCall] = []
 
+        # PDF Analysis - highest priority for PDF files
         if "pdf_analyze" in tool_set:
             pdf_path = self._extract_local_path(normalized_source=user_input + "\n" + (skill_arguments or ""), suffix=".pdf")
             if pdf_path:
                 calls.append(ToolCall(name="pdf_analyze", input={"path": pdf_path}))
                 return calls
 
+        # Deep Research - for comprehensive research queries
         if "deep_search" in tool_set and (
             skill_name == "deep_research"
-            or any(term in normalized for term in ["deep research", "research", "latest", "compare", "investigate"])
+            or any(term in normalized for term in [
+                "deep research", "research", "latest", "compare", "investigate",
+                "analyze", "study", "examine", "comprehensive", "detailed analysis",
+                "what are the", "tell me about", "explain", "how does", "why is"
+            ])
         ):
             calls.append(ToolCall(name="deep_search", input={"query": user_input}))
             return calls
 
+        # Web Search - for any information lookup
         if "web_search" in tool_set and any(
-            term in normalized for term in ["search", "look up", "find", "latest", "news", "what is", "who is"]
+            term in normalized for term in [
+                "search", "look up", "find", "latest", "news", "current",
+                "what is", "who is", "when did", "where is", "how to",
+                "best", "top", "list", "compare", "vs", "versus",
+                "2024", "2025", "recent", "new", "update"
+            ]
         ):
             calls.append(ToolCall(name="web_search", input={"query": user_input}))
-            return calls
+            # Don't return yet - might want to add more tools
+
+        # Code Execution - for programming questions
+        if "code_exec" in tool_set and any(
+            term in normalized for term in [
+                "run", "execute", "calculate", "compute", "evaluate",
+                "python", "javascript", "code", "script", "function"
+            ]
+        ):
+            # Try to extract code from the input
+            if "```" in user_input:
+                calls.append(ToolCall(name="code_exec", input={"code": user_input}))
+
+        # Math Execution - for calculations
+        if "math_exec" in tool_set and any(
+            term in normalized for term in [
+                "calculate", "compute", "sum", "average", "mean", "median",
+                "total", "count", "percentage", "ratio", "+", "-", "*", "/",
+                "equation", "formula", "solve"
+            ]
+        ):
+            calls.append(ToolCall(name="math_exec", input={"expression": user_input}))
+
+        # SQL Execution - for data queries
+        if "sql_exec" in tool_set and any(
+            term in normalized for term in [
+                "query", "select", "database", "table", "data",
+                "count", "sum", "average", "group by", "where",
+                "analytics", "metrics", "stats", "statistics"
+            ]
+        ):
+            # This would need actual SQL query extraction
+            pass
+
+        # File Operations
+        if "file_read" in tool_set and any(
+            term in normalized for term in ["read", "open", "show", "display", "content of"]
+        ):
+            # Try to extract file path
+            import re
+            file_match = re.search(r'["\']([^"\']+\.[a-z]{2,4})["\']', user_input)
+            if file_match:
+                calls.append(ToolCall(name="file_read", input={"path": file_match.group(1)}))
+
+        # Image Analysis
+        if "image_analyze" in tool_set and any(
+            term in normalized for term in ["image", "picture", "photo", "screenshot", ".jpg", ".png", ".jpeg"]
+        ):
+            # Try to extract image path
+            import re
+            img_match = re.search(r'["\']([^"\']+\.(?:jpg|jpeg|png|gif|webp))["\']', user_input, re.IGNORECASE)
+            if img_match:
+                calls.append(ToolCall(name="image_analyze", input={"path": img_match.group(1)}))
+
+        # API Calls - for external data
+        if "api_call" in tool_set and any(
+            term in normalized for term in ["api", "endpoint", "fetch", "get data", "retrieve"]
+        ):
+            # Try to extract URL
+            import re
+            url_match = re.search(r'https?://[^\s]+', user_input)
+            if url_match:
+                calls.append(ToolCall(name="api_call", input={"url": url_match.group(0)}))
+
+        return calls
 
         if "code_analyze" in tool_set and (
             skill_name in {"codebase_analyst", "code_assistant", "debug", "review"}
@@ -549,33 +693,54 @@ class Orchestrator:
         Extract and store important facts from user input
         Examples: names, preferences, context, dislikes, etc.
         """
-        # Patterns to detect important information
+        # Enhanced patterns to detect important information
         patterns = [
-            # Name patterns
-            (r"(?:my name is|i'm|i am|call me)\s+(\w+)", "name"),
-            (r"(?:i'm called|they call me)\s+(\w+)", "name"),
+            # Name patterns - more comprehensive
+            (r"(?:my name is|i'm|i am|call me|this is|i go by)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)", "name"),
+            (r"(?:i'm called|they call me|people call me)\s+([A-Z][a-z]+)", "name"),
             
-            # Preference patterns
-            (r"i (?:prefer|like|love|want|need)\s+(.+?)(?:\.|$|,)", "preference"),
-            (r"i (?:don't like|hate|dislike)\s+(.+?)(?:\.|$|,)", "dislike"),
+            # Preference patterns - more detailed
+            (r"i (?:prefer|like|love|enjoy|want|need|use)\s+(.+?)(?:\.|$|,|\s+(?:and|but|because))", "preference"),
+            (r"i (?:don't like|hate|dislike|avoid|never use)\s+(.+?)(?:\.|$|,|\s+(?:and|but|because))", "dislike"),
+            (r"my favorite\s+(.+?)\s+is\s+(.+?)(?:\.|$|,)", "favorite"),
             
-            # Context patterns
-            (r"i(?:'m| am) (?:building|working on|developing|creating)\s+(.+?)(?:\.|$|,)", "project"),
-            (r"i(?:'m| am) (?:a|an)\s+(.+?)(?:\.|$|,)", "role"),
+            # Context patterns - expanded
+            (r"i(?:'m| am) (?:building|working on|developing|creating|making)\s+(.+?)(?:\.|$|,|\s+(?:using|with|for))", "project"),
+            (r"i(?:'m| am) (?:a|an)\s+(.+?)(?:\.|$|,|\s+(?:at|in|for))", "role"),
+            (r"i work (?:as|as a|as an)\s+(.+?)(?:\.|$|,)", "job_title"),
             
-            # Location/company
-            (r"i work at\s+(.+?)(?:\.|$|,)", "company"),
-            (r"i(?:'m| am) from\s+(.+?)(?:\.|$|,)", "location"),
+            # Location/company - enhanced
+            (r"i work (?:at|for)\s+(.+?)(?:\.|$|,)", "company"),
+            (r"i(?:'m| am) (?:from|in|based in|located in)\s+(.+?)(?:\.|$|,)", "location"),
+            
+            # Technology/tools
+            (r"i (?:use|work with|code in|program in)\s+(.+?)(?:\.|$|,|\s+(?:and|for|to))", "technology"),
+            (r"i(?:'m| am) learning\s+(.+?)(?:\.|$|,)", "learning"),
+            
+            # Goals/objectives
+            (r"i want to\s+(.+?)(?:\.|$|,)", "goal"),
+            (r"i(?:'m| am) trying to\s+(.+?)(?:\.|$|,)", "goal"),
+            (r"my goal is to\s+(.+?)(?:\.|$|,)", "goal"),
+            
+            # Personal details
+            (r"i have\s+(\d+)\s+years?\s+(?:of\s+)?experience", "experience_years"),
+            (r"i(?:'m| am)\s+(\d+)\s+years?\s+old", "age"),
         ]
         
         import re
         facts_to_store = []
         
         for pattern, fact_type in patterns:
-            matches = re.finditer(pattern, text.lower(), re.IGNORECASE)
+            matches = re.finditer(pattern, text, re.IGNORECASE)
             for match in matches:
-                fact_value = match.group(1).strip()
+                if fact_type == "favorite":
+                    fact_value = f"{match.group(1)}: {match.group(2)}"
+                else:
+                    fact_value = match.group(1).strip()
+                
                 if fact_value and len(fact_value) > 1:
+                    # Clean up the value
+                    fact_value = fact_value.strip('.,!?')
                     facts_to_store.append({
                         "type": fact_type,
                         "value": fact_value,
@@ -584,7 +749,26 @@ class Orchestrator:
         
         # Store each fact as structured memory
         for fact in facts_to_store:
-            fact_text = f"User {fact['type']}: {fact['value']}"
+            if fact['type'] == 'name':
+                fact_text = f"User's name is {fact['value']}"
+            elif fact['type'] == 'preference':
+                fact_text = f"User prefers {fact['value']}"
+            elif fact['type'] == 'dislike':
+                fact_text = f"User dislikes {fact['value']}"
+            elif fact['type'] == 'project':
+                fact_text = f"User is working on {fact['value']}"
+            elif fact['type'] == 'role':
+                fact_text = f"User is a {fact['value']}"
+            elif fact['type'] == 'company':
+                fact_text = f"User works at {fact['value']}"
+            elif fact['type'] == 'location':
+                fact_text = f"User is from {fact['value']}"
+            elif fact['type'] == 'technology':
+                fact_text = f"User uses {fact['value']}"
+            elif fact['type'] == 'goal':
+                fact_text = f"User wants to {fact['value']}"
+            else:
+                fact_text = f"User {fact['type']}: {fact['value']}"
             
             # Store in vector store for retrieval
             await self.memory.vector_store_text(
@@ -616,4 +800,4 @@ class Orchestrator:
                 },
             )
             
-            logger.info(f"Stored fact: {fact['type']} = {fact['value']}")
+            logger.info(f"✓ Stored fact: {fact['type']} = {fact['value']}")

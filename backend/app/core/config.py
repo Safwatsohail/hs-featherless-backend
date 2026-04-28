@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     vector_backend: Literal["chroma", "memory"] = Field(default="chroma", alias="VECTOR_BACKEND")
     chroma_persist_dir: Path = Field(default=Path("./.chroma"), alias="CHROMA_PERSIST_DIR")
     short_term_max_messages: int = Field(default=20, alias="SHORT_TERM_MAX_MESSAGES")
-    vector_top_k: int = Field(default=3, alias="VECTOR_TOP_K")
+    vector_top_k: int = Field(default=10, alias="VECTOR_TOP_K")  # Increased from 3 to 10 for better memory retrieval
     
     redis_url: str | None = Field(default=None, alias="REDIS_URL")
 
