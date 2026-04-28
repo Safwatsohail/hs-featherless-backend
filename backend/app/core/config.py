@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     app_name: str = Field(default="ai-orchestrator-backend", alias="APP_NAME")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
-    host: str = Field(default="0.0.0.0", alias="HOST")
+    host: str = Field(default="127.0.0.1", alias="HOST")
     port: int = Field(default=8000, alias="PORT")
 
     database_url: str = Field(

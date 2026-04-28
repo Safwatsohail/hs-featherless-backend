@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import uuid
 
-from backend.app.utils.text import stable_hash_embedding
+from app.utils.text import stable_hash_embedding
 
 logger = logging.getLogger(__name__)
 

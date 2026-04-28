@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Test - Enhanced AI API</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #0f0;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 { color: #0f0; border-bottom: 2px solid #0f0; padding-bottom: 10px; }
+        .test { margin: 20px 0; padding: 15px; border: 1px solid #0f0; }
+        .test h2 { color: #0ff; margin-top: 0; }
+        button { 
+            background: #0f0; 
+            color: #000; 
+            border: none; 
+            padding: 10px 20px; 
+            cursor: pointer; 
+            font-family: inherit;
+            font-weight: bold;
+        }
+        button:hover { background: #0ff; }
+        pre { 
+            background: #111; 
+            padding: 10px; 
+            overflow-x: auto; 
+            border-left: 3px solid #0f0;
+        }
+        .success { color: #0f0; }
+        .error { color: #f00; }
+        .info { color: #0ff; }
+        input, textarea {
+            background: #111;
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 8px;
+            font-family: inherit;
+            width: 100%;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Enhanced AI API - Frontend Test Suite</h1>
+    
+    <div class="test">
+        <h2>1. Backend Health Check</h2>
+        <button onclick="testBackend()">Test Backend</button>
+        <pre id="backend-result">Click button to test...</pre>
+    </div>
+
+    <div class="test">
+        <h2>2. Store API Key</h2>
+        <input type="text" id="user-id" placeholder="User ID" value="00000000-0000-0000-0000-000000000001">
+        <input type="text" id="openrouter-key" placeholder="OpenRouter API Key" value="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">
+        <button onclick="storeApiKey()">Store Key</button>
+        <pre id="store-result">Click button to test...</pre>
+    </div>
+
+    <div class="test">
+        <h2>3. Generate Aurora Key</h2>
+        <button onclick="generateAuroraKey()">Generate Aurora Key</button>
+        <pre id="aurora-result">Click button to test...</pre>
+    </div>
+
+    <div class="test">
+        <h2>4. Test Chat</h2>
+        <input type="text" id="aurora-key" placeholder="Aurora Key (from step 3)">
+        <textarea id="chat-input" rows="3" placeholder="Enter your message...">What is 2+2?</textarea>
+        <button onclick="testChat()">Send Message</button>
+        <pre id="chat-result">Click button to test...</pre>
+    </div>
+
+    <div class="test">
+        <h2>5. Test Compare</h2>
+        <textarea id="compare-input" rows="3" placeholder="Enter your message...">Calculate 15 * 8</textarea>
+        <button onclick="testCompare()">Run Comparison</button>
+        <pre id="compare-result">Click button to test...</pre>
+    </div>
+
+    <div class="test">
+        <h2>6. Test Tool</h2>
+        <input type="text" id="tool-name" placeholder="Tool name" value="calculator">
+        <input type="text" id="tool-input" placeholder="Tool input (JSON)" value='{"expression": "42 * 7"}'>
+        <button onclick="testTool()">Execute Tool</button>
+        <pre id="tool-result">Click button to test...</pre>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        let currentUserId = '00000000-0000-0000-0000-000000000001';
+        let currentAuroraKey = '';
+
+        async function testBackend() {
+            const result = document.getElementById('backend-result');
+            result.textContent = 'Testing...';
+            try {
+                const res = await fetch(`${API_BASE}/healthz`);
+                const data = await res.json();
+                result.innerHTML = `<span class="success">✓ Backend is healthy!</span>\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                result.innerHTML = `<span class="error">✗ Error: ${error.message}</span>`;
+            }
+        }
+
+        async function storeApiKey() {
+            const result = document.getElementById('store-result');
+            const userId = document.getElementById('user-id').value;
+            const apiKey = document.getElementById('openrouter-key').value;
+            
+            result.textContent = 'Storing...';
+            currentUserId = userId;
+            
+            try {
+                const res = await fetch(`${API_BASE}/apikey`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        provider: 'openrouter',
+                        api_key: apiKey
+                    })
+                });
+                const data = await res.json();
+                result.innerHTML = `<span class="success">✓ API key stored!</span>\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                result.innerHTML = `<span class="error">✗ Error: ${error.message}</span>`;
+            }
+        }
+
+        async function generateAuroraKey() {
+            const result = document.getElementById('aurora-result');
+            result.textContent = 'Generating...';
+            
+            try {
+                const res = await fetch(`${API_BASE}/auth/issue-key`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: currentUserId,
+                        name: 'Test Key',
+                        scopes: ['chat', 'memory', 'tools', 'skills']
+                    })
+                });
+                const data = await res.json();
+                currentAuroraKey = data.api_key;
+                document.getElementById('aurora-key').value = currentAuroraKey;
+                result.innerHTML = `<span class="success">✓ Aurora key generated!</span>\n<span class="info">Key: ${currentAuroraKey}</span>\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                result.innerHTML = `<span class="error">✗ Error: ${error.message}</span>`;
+            }
+        }
+
+        async function testChat() {
+            const result = document.getElementById('chat-result');
+            const auroraKey = document.getElementById('aurora-key').value || currentAuroraKey;
+            const input = document.getElementById('chat-input').value;
+            
+            if (!auroraKey) {
+                result.innerHTML = '<span class="error">✗ Please generate Aurora key first!</span>';
+                return;
+            }
+            
+            result.textContent = 'Sending...';
+            
+            try {
+                const res = await fetch(`${API_BASE}/v1/run`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${auroraKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        user_id: currentUserId,
+                        input: input,
+                        memory_scope: 'user',
+                        provider: 'openrouter',
+                        model: 'openrouter/auto'
+                    })
+                });
+                const data = await res.json();
+                result.innerHTML = `<span class="success">✓ Chat response received!</span>\n<span class="info">Skill: ${data.skill}</span>\n<span class="info">Output: ${data.output.slice(0, 200)}...</span>\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                result.innerHTML = `<span class="error">✗ Error: ${error.message}</span>`;
+            }
+        }
+
+        async function testCompare() {
+            const result = document.getElementById('compare-result');
+            const auroraKey = document.getElementById('aurora-key').value || currentAuroraKey;
+            const input = document.getElementById('compare-input').value;
+            
+            if (!auroraKey) {
+                result.innerHTML = '<span class="error">✗ Please generate Aurora key first!</span>';
+                return;
+            }
+            
+            result.textContent = 'Comparing...';
+            
+            try {
+                const res = await fetch(`${API_BASE}/v1/compare`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${auroraKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        user_id: currentUserId,
+                        input: input,
+                        provider: 'openrouter',
+                        model: 'openrouter/auto',
+                        memory_scope: 'user'
+                    })
+                });
+                const data = await res.json();
+                result.innerHTML = `<span class="success">✓ Comparison complete!</span>
+<span class="info">Baseline: ${data.baseline.output.slice(0, 100)}...</span>
+<span class="info">Tuned: ${data.tuned.output.slice(0, 100)}...</span>
+<span class="info">Skill: ${data.tuned.skill}</span>
+<span class="info">Latency Gap: ${data.delta.latency_gap_ms}ms</span>
+${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                result.innerHTML = `<span class="error">✗ Error: ${error.message}</span>`;
+            }
+        }
+
+        async function testTool() {
+            const result = document.getElementById('tool-result');
+            const auroraKey = document.getElementById('aurora-key').value || currentAuroraKey;
+            const toolName = document.getElementById('tool-name').value;
+            const toolInput = document.getElementById('tool-input').value;
+            
+            if (!auroraKey) {
+                result.innerHTML = '<span class="error">✗ Please generate Aurora key first!</span>';
+                return;
+            }
+            
+            result.textContent = 'Executing...';
+            
+            try {
+                const res = await fetch(`${API_BASE}/v1/tools/${toolName}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${auroraKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: toolName,
+                        input: JSON.parse(toolInput)
+                    })
+                });
+                const data = await res.json();
+                result.innerHTML = `<span class="success">✓ Tool executed!</span>\n<span class="info">Output: ${data.output}</span>\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                result.innerHTML = `<span class="error">✗ Error: ${error.message}</span>`;
+            }
+        }
+    </script>
+</body>
+</html>

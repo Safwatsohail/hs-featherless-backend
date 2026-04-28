@@ -7,7 +7,7 @@ from typing import Any, Literal
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from backend.app.core.config import get_settings
+from app.core.config import get_settings
 
 
 class LLMError(RuntimeError):

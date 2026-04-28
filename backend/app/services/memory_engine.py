@@ -8,8 +8,8 @@ from typing import Any
 from sqlalchemy import Select, desc, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.core.config import get_settings
-from backend.app.models import Conversation, MemoryMetadata, Message
+from app.core.config import get_settings
+from app.models import Conversation, MemoryMetadata, Message
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +71,20 @@ class VectorMemoryStore:
                 self.backend = "memory"
 
     def add(self, *, item_id: str, text: str, metadata: dict[str, Any]) -> None:
+        # Ensure user preferences are properly tagged and shared across API keys
+        if "user_id" in metadata:
+            # For cross-API-key sharing, use email as primary identifier if available
+            if "email" in metadata:
+                metadata["shared_user_id"] = metadata["email"]
+            else:
+                metadata["shared_user_id"] = metadata["user_id"]
+        
+        # Auto-detect and tag user preferences
+        text_lower = text.lower()
+        if any(keyword in text_lower for keyword in ["prefer", "like", "want", "use", "color", "theme"]):
+            metadata["is_preference"] = True
+            metadata["preference_type"] = "user_setting"
+        
         if self.backend == "chroma" and self._collection is not None:
             self._collection.add(ids=[item_id], documents=[text], metadatas=[metadata])
             return
@@ -78,10 +92,24 @@ class VectorMemoryStore:
 
     def query(self, *, user_id: str, query: str, top_k: int) -> list[RetrievedMemory]:
         if self.backend == "chroma" and self._collection is not None:
+            # Support cross-API-key memory sharing - query both user_id and shared_user_id
+            where_clause = {
+                "$or": [
+                    {"user_id": str(user_id)},
+                    {"shared_user_id": str(user_id)}
+                ]
+            }
+            
+            # Boost preference matching for better user experience
+            query_lower = query.lower()
+            if any(pref in query_lower for pref in ["prefer", "like", "want", "color", "theme"]):
+                # Add preference boost to query
+                query = query + " user preferences settings"
+            
             result = self._collection.query(
                 query_texts=[query],
                 n_results=top_k,
-                where={"user_id": str(user_id)},
+                where=where_clause,
             )
             documents = result.get("documents", [[]])[0]
             ids = result.get("ids", [[]])[0]
@@ -89,12 +117,18 @@ class VectorMemoryStore:
             distances = result.get("distances", [[]])[0] if result.get("distances") else []
             retrieved: list[RetrievedMemory] = []
             for index, document in enumerate(documents):
+                metadata = metadatas[index] if index < len(metadatas) else {}
+                # Boost preference items in results
+                score = distances[index] if index < len(distances) else None
+                if metadata.get("is_preference"):
+                    score = (score or 0.5) * 0.8  # Boost preference matches
+                
                 retrieved.append(
                     RetrievedMemory(
                         id=ids[index],
                         text=document,
-                        score=distances[index] if index < len(distances) else None,
-                        metadata=metadatas[index] if index < len(metadatas) else {},
+                        score=score,
+                        metadata=metadata,
                     )
                 )
             return retrieved
@@ -129,13 +163,14 @@ class MemoryEngine:
         memory_scope: str = "user",
         context_key: str | None = None,
     ) -> Conversation:
+        uid_str = str(user_id)
         if conversation_id is not None:
-            existing = await self.session.get(Conversation, conversation_id)
+            existing = await self.session.get(Conversation, str(conversation_id))
             if existing is not None:
                 return existing
 
         conversation = Conversation(
-            user_id=user_id,
+            user_id=uid_str,
             title=title,
             memory_scope=memory_scope,
             context_key=context_key,
@@ -154,8 +189,8 @@ class MemoryEngine:
         content: str,
     ) -> Message:
         message = Message(
-            conversation_id=conversation_id,
-            user_id=user_id,
+            conversation_id=str(conversation_id),
+            user_id=str(user_id),
             role=role,
             content=content,
         )
@@ -167,7 +202,7 @@ class MemoryEngine:
     async def get_short_term_memory(self, *, conversation_id: uuid.UUID, limit: int | None = None) -> list[Message]:
         stmt: Select[tuple[Message]] = (
             select(Message)
-            .where(Message.conversation_id == conversation_id)
+            .where(Message.conversation_id == str(conversation_id))
             .order_by(desc(Message.created_at))
             .limit(limit or self.short_term_max_messages)
         )
@@ -188,10 +223,10 @@ class MemoryEngine:
         context_key: str | None = None,
     ) -> MemoryMetadata:
         memory = MemoryMetadata(
-            user_id=user_id,
+            user_id=str(user_id),
             memory_scope=memory_scope,
             context_key=context_key,
-            conversation_id=conversation_id,
+            conversation_id=str(conversation_id) if conversation_id else None,
             kind=kind,
             data=metadata,
         )
@@ -305,10 +340,10 @@ class MemoryEngine:
         context_key: str | None = None,
     ) -> MemoryMetadata:
         row = MemoryMetadata(
-            user_id=user_id,
+            user_id=str(user_id),
             memory_scope=memory_scope,
             context_key=context_key,
-            conversation_id=conversation_id,
+            conversation_id=str(conversation_id) if conversation_id else None,
             kind=kind,
             data=data,
         )
@@ -329,6 +364,7 @@ class MemoryEngine:
         structured_limit: int = 10,
         conversation_id: uuid.UUID | None = None,
     ) -> dict[str, Any]:
+        uid_str = str(user_id)
         memories = []
         if query:
             memories = await self.vector_retrieve(
@@ -342,7 +378,7 @@ class MemoryEngine:
         structured_stmt = (
             select(MemoryMetadata)
             .where(
-                MemoryMetadata.user_id == user_id,
+                MemoryMetadata.user_id == uid_str,
                 MemoryMetadata.memory_scope == memory_scope,
                 MemoryMetadata.context_key == context_key,
             )
@@ -352,14 +388,14 @@ class MemoryEngine:
         structured_result = await self.session.execute(structured_stmt)
         structured = list(structured_result.scalars().all())
 
-        conversation_ids: list[uuid.UUID] = []
+        conversation_ids: list[str] = []
         if conversation_id:
-            conversation_ids.append(conversation_id)
+            conversation_ids.append(str(conversation_id))
         else:
             conversation_stmt = (
                 select(Conversation.id)
                 .where(
-                    Conversation.user_id == user_id,
+                    Conversation.user_id == uid_str,
                     Conversation.memory_scope == memory_scope,
                     Conversation.context_key == context_key,
                 )
@@ -367,7 +403,7 @@ class MemoryEngine:
                 .limit(10)
             )
             conversation_result = await self.session.execute(conversation_stmt)
-            conversation_ids = list(conversation_result.scalars().all())
+            conversation_ids = [str(r) for r in conversation_result.scalars().all()]
 
         recent_messages: list[Message] = []
         if conversation_ids:

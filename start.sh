@@ -28,9 +28,9 @@ if [ ! -f "backend/.env" ]; then
 fi
 
 # Start backend in background
-echo "🔧 Starting backend server on http://localhost:8000..."
+echo "🔧 Starting backend server on http://localhost:8000 (LOCAL ONLY)..."
 source backend/.venv/bin/activate
-PYTHONPATH=. uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000 > backend.log 2>&1 &
+PYTHONPATH=./backend uvicorn app.main:app --reload --host 127.0.0.1 --port 8000 > backend.log 2>&1 &
 BACKEND_PID=$!
 echo "✅ Backend started (PID: $BACKEND_PID)"
 echo ""

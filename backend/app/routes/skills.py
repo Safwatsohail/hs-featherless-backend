@@ -3,11 +3,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.db.session import get_db
-from backend.app.models.skill import Skill
-from backend.app.schemas.skill import SkillCreate, SkillImportRequest, SkillImportResult, SkillResponse
-from backend.app.services.skill_importer import SkillImportService
-from backend.app.services.skill_engine import SkillEngine
+from app.db.session import get_db
+from app.models.skill import Skill
+from app.schemas.skill import SkillCreate, SkillImportRequest, SkillImportResult, SkillResponse
+from app.services.skill_importer import SkillImportService
+from app.services.skill_engine import SkillEngine
 
 router = APIRouter(prefix="/skills", tags=["skills"])
 

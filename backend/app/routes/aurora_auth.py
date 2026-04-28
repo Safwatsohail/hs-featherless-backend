@@ -5,10 +5,10 @@ import uuid
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.db.session import get_db
-from backend.app.schemas.aurora_auth import AuroraKeyIssueRequest, AuroraKeyResponse
-from backend.app.services.api_key_service import ApiKeyService
-from backend.app.services.aurora_auth_service import AuroraAuthService
+from app.db.session import get_db
+from app.schemas.aurora_auth import AuroraKeyIssueRequest, AuroraKeyResponse
+from app.services.api_key_service import ApiKeyService
+from app.services.aurora_auth_service import AuroraAuthService
 
 router = APIRouter(prefix="/auth", tags=["aurora-auth"])
 

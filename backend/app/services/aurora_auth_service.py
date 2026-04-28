@@ -9,10 +9,10 @@ from fastapi import Header, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.core.config import get_settings
-from backend.app.models import AuroraApiKey
-from backend.app.schemas.aurora_auth import AuroraAuthContext, AuroraKeyResponse
-from backend.app.services.api_key_service import ApiKeyService
+from app.core.config import get_settings
+from app.models import AuroraApiKey
+from app.schemas.aurora_auth import AuroraAuthContext, AuroraKeyResponse
+from app.services.api_key_service import ApiKeyService
 
 
 class AuroraAuthService:
@@ -33,7 +33,7 @@ class AuroraAuthService:
         await self.api_keys.ensure_user(user_id)
         raw_key = f"aurora_live_{secrets.token_urlsafe(24)}"
         row = AuroraApiKey(
-            user_id=user_id,
+            user_id=str(user_id),
             name=name,
             key_prefix=self._prefix(raw_key),
             key_hash=self._hash_key(raw_key),
@@ -55,7 +55,7 @@ class AuroraAuthService:
 
     async def list_keys(self, *, user_id: uuid.UUID) -> list[AuroraKeyResponse]:
         result = await self.db.execute(
-            select(AuroraApiKey).where(AuroraApiKey.user_id == user_id).order_by(AuroraApiKey.created_at.desc())
+            select(AuroraApiKey).where(AuroraApiKey.user_id == str(user_id)).order_by(AuroraApiKey.created_at.desc())
         )
         rows = list(result.scalars().all())
         return [

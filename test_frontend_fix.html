@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test UUID Generation</title>
+</head>
+<body>
+    <h1>Test UUID Generation from Email</h1>
+    <input type="email" id="email" placeholder="Enter email" value="test@example.com">
+    <button onclick="testUUID()">Generate UUID</button>
+    <div id="result"></div>
+    
+    <script>
+        function emailToUUID(email) {
+            let hash = 0;
+            for (let i = 0; i < email.length; i++) {
+                hash = ((hash << 5) - hash) + email.charCodeAt(i);
+                hash = hash & hash;
+            }
+            const hex = Math.abs(hash).toString(16).padStart(8, '0');
+            return `${hex.slice(0,8)}-${hex.slice(0,4)}-4${hex.slice(0,3)}-a${hex.slice(0,3)}-${hex.slice(0,12).padEnd(12, '0')}`;
+        }
+        
+        function testUUID() {
+            const email = document.getElementById('email').value;
+            const uuid = emailToUUID(email.toLowerCase());
+            document.getElementById('result').innerHTML = `
+                <p><strong>Email:</strong> ${email}</p>
+                <p><strong>UUID:</strong> ${uuid}</p>
+                <p><strong>Valid UUID format:</strong> ${/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[a-f0-9]{4}-[0-9a-f]{12}$/i.test(uuid) ? '✅ Yes' : '❌ No'}</p>
+            `;
+        }
+        
+        // Test on load
+        testUUID();
+    </script>
+</body>
+</html>

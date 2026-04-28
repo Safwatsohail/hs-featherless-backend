@@ -386,6 +386,14 @@
                             <span class="dash__navbtn-kbd">04</span>
                             <span>Tool Builder</span>
                         </button>
+                        <button class="dash__navbtn" data-tab="apikey" data-testid="tab-apikey">
+                            <span class="dash__navbtn-kbd">05</span>
+                            <span>API Key</span>
+                        </button>
+                        <button class="dash__navbtn" data-tab="docs" data-testid="tab-docs">
+                            <span class="dash__navbtn-kbd">06</span>
+                            <span>Dev Docs</span>
+                        </button>
                     </nav>
                     <div class="dash__side-foot">
                         <div class="dash__stat">
@@ -409,18 +417,37 @@
                         <div class="dash__head">
                             <div>
                                 <h1>A/B Chat · Raw vs Enhanced</h1>
-                                <p class="dash__head-sub">Same prompt, same Featherless model. Two different realities.</p>
+                                <p class="dash__head-sub">Same prompt, same model. Two different realities.</p>
                             </div>
                             <div class="dash__head-right">
                                 <div class="select" data-testid="compare-model-select">
                                     <span class="mono-dim">MODEL</span>
                                     <select id="compareModel">
+                                        <option value="openrouter/auto">openrouter/auto</option>
                                         <option>DeepSeek-V3.2</option>
                                         <option>Kimi-K2.5</option>
                                         <option>GLM-5</option>
                                         <option>Qwen3-Coder-30B</option>
                                         <option>Mistral-Small-3.2-24B</option>
                                     </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Configuration Section -->
+                        <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-2); padding: var(--s-4); margin-bottom: var(--s-5);">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--s-3);">
+                                <div class="field">
+                                    <label class="field__label">AURORA KEY</label>
+                                    <input type="text" id="compareAuroraKey" placeholder="aurora_live_..." value="" />
+                                </div>
+                                <div class="field">
+                                    <label class="field__label">USER ID</label>
+                                    <input type="text" id="compareUserId" placeholder="user-id" value="" />
+                                </div>
+                                <div class="field">
+                                    <label class="field__label">OPENROUTER KEY</label>
+                                    <input type="text" id="compareOpenRouterKey" placeholder="sk-or-v1-..." value="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" />
                                 </div>
                             </div>
                         </div>
@@ -569,6 +596,158 @@
                                     <div class="mono-dim">// console output — press Run tool</div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- ===== API KEY TAB ===== -->
+                    <div class="dash__panel" data-panel="apikey">
+                        <div class="dash__head">
+                            <div>
+                                <h1>Your Aurora API Key</h1>
+                                <p class="dash__head-sub">Use this key in your apps. It works with OpenRouter and Featherless — memory, skills, and tools included.</p>
+                            </div>
+                        </div>
+
+                        <div class="apikey-section">
+                            <div class="apikey-card">
+                                <div class="apikey-card__label">
+                                    <span class="dot"></span>
+                                    <span class="mono-dim">AURORA ENHANCED KEY</span>
+                                    <span class="tag" id="apikeyStatus">active</span>
+                                </div>
+                                <div class="apikey-card__key">
+                                    <code id="apikeyDisplay">— generate a key first —</code>
+                                    <button class="btn btn--ghost" id="apikeyRevealBtn">Show</button>
+                                    <button class="btn btn--solid" id="apikeyCopyBtn">Copy</button>
+                                </div>
+                                <div class="apikey-card__meta">
+                                    <span class="mono-dim">USER ID</span>
+                                    <code id="apikeyUserId">00000000-0000-0000-0000-000000000001</code>
+                                    <button class="btn btn--ghost" style="padding:2px 8px;font-size:11px" id="apikeyUserIdCopy">Copy</button>
+                                </div>
+                            </div>
+
+                            <div class="apikey-stats">
+                                <div class="apikey-stat">
+                                    <span class="mono-dim">PROVIDER</span>
+                                    <span class="mono">openrouter + featherless</span>
+                                </div>
+                                <div class="apikey-stat">
+                                    <span class="mono-dim">SCOPES</span>
+                                    <span class="mono">chat · memory · tools · skills</span>
+                                </div>
+                                <div class="apikey-stat">
+                                    <span class="mono-dim">MEMORY SCOPE</span>
+                                    <span class="mono">user (shared across keys)</span>
+                                </div>
+                                <div class="apikey-stat">
+                                    <span class="mono-dim">BASE URL</span>
+                                    <span class="mono">http://localhost:8000</span>
+                                </div>
+                            </div>
+
+                            <div class="apikey-actions">
+                                <button class="btn btn--ghost" id="apikeyRevokeBtn">Revoke &amp; Regenerate</button>
+                                <button class="btn btn--solid" id="apikeyTestBtn">Test Key →</button>
+                            </div>
+                            <div class="apikey-test-result" id="apikeyTestResult" hidden></div>
+                        </div>
+                    </div>
+
+                    <!-- ===== DEV DOCS TAB ===== -->
+                    <div class="dash__panel" data-panel="docs">
+                        <div class="dash__head">
+                            <div>
+                                <h1>Developer Documentation</h1>
+                                <p class="dash__head-sub">Everything you need to integrate H&amp;S Layer into any project.</p>
+                            </div>
+                            <div class="dash__head-right">
+                                <div class="select">
+                                    <span class="mono-dim">LANG</span>
+                                    <select id="docsLang">
+                                        <option value="curl">cURL</option>
+                                        <option value="python">Python</option>
+                                        <option value="javascript">JavaScript</option>
+                                        <option value="typescript">TypeScript</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="docs-body">
+                            <!-- Quick start -->
+                            <section class="docs-section">
+                                <h2 class="docs-section__title">Quick Start</h2>
+                                <p class="docs-section__sub">Replace your raw API key with your Aurora key. Same endpoints, now stateful.</p>
+                                <div class="docs-snippet" id="docsSnippetQuickstart"></div>
+                            </section>
+
+                            <!-- Chat -->
+                            <section class="docs-section">
+                                <h2 class="docs-section__title">Chat with Memory &amp; Skills</h2>
+                                <p class="docs-section__sub">POST /v1/run — auto-routes to the best skill, recalls memory, executes tools.</p>
+                                <div class="docs-snippet" id="docsSnippetChat"></div>
+                            </section>
+
+                            <!-- Compare -->
+                            <section class="docs-section">
+                                <h2 class="docs-section__title">A/B Compare Raw vs Enhanced</h2>
+                                <p class="docs-section__sub">POST /v1/compare — runs both raw and enhanced in one call, returns delta metrics.</p>
+                                <div class="docs-snippet" id="docsSnippetCompare"></div>
+                            </section>
+
+                            <!-- Memory -->
+                            <section class="docs-section">
+                                <h2 class="docs-section__title">Store &amp; Retrieve Memory</h2>
+                                <p class="docs-section__sub">Memory is shared across all Aurora keys for the same user_id.</p>
+                                <div class="docs-snippet" id="docsSnippetMemory"></div>
+                            </section>
+
+                            <!-- Invoke skill -->
+                            <section class="docs-section">
+                                <h2 class="docs-section__title">Invoke a Specific Skill</h2>
+                                <p class="docs-section__sub">POST /v1/skills/{name} — force a specific skill instead of auto-routing.</p>
+                                <div class="docs-snippet" id="docsSnippetSkill"></div>
+                            </section>
+
+                            <!-- Endpoints table -->
+                            <section class="docs-section">
+                                <h2 class="docs-section__title">All Endpoints</h2>
+                                <div class="table-wrap">
+                                    <table class="table">
+                                        <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
+                                        <tbody>
+                                            <tr><td><span class="tag">POST</span></td><td><code>/v1/run</code></td><td>Enhanced chat with skills + memory + tools</td></tr>
+                                            <tr><td><span class="tag">POST</span></td><td><code>/v1/compare</code></td><td>A/B compare raw vs enhanced</td></tr>
+                                            <tr><td><span class="tag">POST</span></td><td><code>/v1/skills/{name}</code></td><td>Invoke a specific skill</td></tr>
+                                            <tr><td><span class="tag tag--muted">GET</span></td><td><code>/v1/skills</code></td><td>List all available skills</td></tr>
+                                            <tr><td><span class="tag">POST</span></td><td><code>/v1/memory</code></td><td>Store a memory fact</td></tr>
+                                            <tr><td><span class="tag">POST</span></td><td><code>/v1/memory/context</code></td><td>Retrieve memory context</td></tr>
+                                            <tr><td><span class="tag">POST</span></td><td><code>/v1/tools/{name}</code></td><td>Execute a specific tool</td></tr>
+                                            <tr><td><span class="tag tag--muted">GET</span></td><td><code>/tools</code></td><td>List all tools</td></tr>
+                                            <tr><td><span class="tag">POST</span></td><td><code>/apikey</code></td><td>Store provider API key</td></tr>
+                                            <tr><td><span class="tag">POST</span></td><td><code>/auth/issue-key</code></td><td>Generate Aurora enhanced key</td></tr>
+                                            <tr><td><span class="tag tag--muted">GET</span></td><td><code>/healthz</code></td><td>Health check</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </section>
+
+                            <!-- Memory scopes -->
+                            <section class="docs-section">
+                                <h2 class="docs-section__title">Memory Scopes</h2>
+                                <div class="table-wrap">
+                                    <table class="table">
+                                        <thead><tr><th>Scope</th><th>Sharing</th><th>Use Case</th></tr></thead>
+                                        <tbody>
+                                            <tr><td><code>user</code></td><td>All keys for same user_id</td><td>Personal preferences, facts</td></tr>
+                                            <tr><td><code>workspace</code></td><td>Same context_key</td><td>Project-specific knowledge</td></tr>
+                                            <tr><td><code>conversation</code></td><td>Single conversation_id</td><td>Private session</td></tr>
+                                            <tr><td><code>global</code></td><td>All users</td><td>Shared knowledge base</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </section>
                         </div>
                     </div>
                 </main>

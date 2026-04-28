@@ -7,9 +7,9 @@ from pathlib import Path
 import yaml
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.models.skill import Skill
-from backend.app.schemas.skill import SkillImportRequest, SkillImportResult
-from backend.app.services.skill_engine import SkillEngine
+from app.models.skill import Skill
+from app.schemas.skill import SkillImportRequest, SkillImportResult
+from app.services.skill_engine import SkillEngine
 
 
 class SkillImportService:

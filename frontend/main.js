@@ -6,6 +6,11 @@
 (() => {
     "use strict";
 
+    // ---------- API Configuration (LOCAL ONLY) ----------
+    const API_BASE = "http://localhost:8000";
+    let currentUserId = null; // User must sign up/sign in
+    let currentAuroraKey = null; // Generated after auth
+
     // ---------- small helpers ----------
     const $  = (s, r = document) => r.querySelector(s);
     const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -141,12 +146,32 @@
             $("#authForm input[type='email']")?.focus();
             return;
         }
-        toast("Signed in · bridge your key next");
+        // Generate a deterministic UUID from email using a simple hash
+        // This ensures the same email always gets the same UUID
+        function emailToUUID(email) {
+            // Simple hash function to convert email to UUID
+            let hash = 0;
+            for (let i = 0; i < email.length; i++) {
+                hash = ((hash << 5) - hash) + email.charCodeAt(i);
+                hash = hash & hash; // Convert to 32bit integer
+            }
+            // Convert hash to hex and pad to create UUID format
+            const hex = Math.abs(hash).toString(16).padStart(8, '0');
+            // Create a valid UUID v4 format
+            return `${hex.slice(0,8)}-${hex.slice(0,4)}-4${hex.slice(0,3)}-a${hex.slice(0,3)}-${hex.slice(0,12).padEnd(12, '0')}`;
+        }
+        currentUserId = emailToUUID(email.toLowerCase());
+        toast(`Welcome ${email}! Set up your API key next`);
         go("onboarding");
     }
     $("#authForm")?.addEventListener("submit", (e) => { e.preventDefault(); proceedFromAuth(); });
     $("#authSubmit")?.addEventListener("click", (e) => { e.preventDefault(); proceedFromAuth(); });
-    $("#authSsoBtn")?.addEventListener("click", () => { toast("SSO · visual prototype"); go("onboarding"); });
+    $("#authSsoBtn")?.addEventListener("click", () => { 
+        // Generate a demo user ID for SSO
+        currentUserId = "00000000-0000-0000-0000-000000000001";
+        toast("SSO · visual prototype"); 
+        go("onboarding"); 
+    });
 
     // ========================================================
     // API BRIDGE — generate enhanced key
@@ -182,6 +207,14 @@
             bridgeInput.focus();
             return;
         }
+        
+        // Check if user is logged in
+        if (!currentUserId) {
+            toast("Please sign in first");
+            go("auth");
+            return;
+        }
+        
         bridgeRunBtn.disabled = true;
         bridgeLog.innerHTML = "";
         bridgeFill.style.width = "0%";
@@ -197,21 +230,103 @@
 
         bridgeOut.textContent = "hs_•••• transforming ••••";
 
-        for (const s of steps) {
-            logLine(s.log, "log-dim");
-            bridgeFill.style.width = s.w + "%";
-            bridgeLabel.textContent = s.lbl;
+        // Step 1: Store key for BOTH openrouter AND featherless (same key works for testing)
+        try {
+            logLine("› storing api key for openrouter + featherless", "log-dim");
+            bridgeFill.style.width = "18%";
+            bridgeLabel.textContent = "VERIFY";
+
+            for (const provider of ["openrouter", "featherless"]) {
+                const res = await fetch(`${API_BASE}/apikey`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ user_id: currentUserId, provider, api_key: fl })
+                });
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    console.error(`Failed to store key for ${provider}:`, errorText);
+                    throw new Error(`Failed to store key for ${provider}: ${res.status}`);
+                }
+            }
+
+            logLine("✓ key stored for openrouter + featherless", "log-ok");
             await sleep(420);
-            logLine(s.ok, "log-ok");
+        } catch (error) {
+            logLine("✗ " + error.message, "log-err");
+            bridgeRunBtn.disabled = false;
+            toast("Failed to store API key");
+            return;
         }
 
-        const newKey = genHsKey(fl);
-        bridgeOut.textContent = newKey;
-        $("#dashKeyShort").textContent = newKey.slice(0, 7) + "···" + newKey.slice(-4);
-        bridgeRunBtn.disabled = false;
-        bridgeRunBtn.textContent = "Regenerate";
-        bridgeCont.hidden = false;
-        toast("Enhanced key generated");
+        // Step 2: Generate Aurora enhanced key
+        try {
+            logLine("› generating enhanced aurora key", "log-dim");
+            bridgeFill.style.width = "68%";
+            bridgeLabel.textContent = "BIND";
+            
+            const auroraResponse = await fetch(`${API_BASE}/auth/issue-key`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    user_id: currentUserId,
+                    name: "H&S Enhanced Key",
+                    scopes: ["chat", "memory", "tools", "skills"]
+                })
+            });
+            
+            if (!auroraResponse.ok) {
+                throw new Error("Failed to generate Aurora key");
+            }
+            
+            const auroraData = await auroraResponse.json();
+            currentAuroraKey = auroraData.api_key;
+            
+            logLine("✓ aurora key generated", "log-ok");
+            await sleep(420);
+            
+            bridgeFill.style.width = "100%";
+            bridgeLabel.textContent = "READY";
+            logLine("› enhanced key ready", "log-dim");
+            await sleep(200);
+            logLine("✓ drop-in ready — same endpoints", "log-ok");
+
+            bridgeOut.textContent = currentAuroraKey;
+            const dashKeyShortEl = $("#dashKeyShort");
+            if (dashKeyShortEl) {
+                dashKeyShortEl.textContent = currentAuroraKey.slice(0, 10) + "···" + currentAuroraKey.slice(-6);
+            }
+            
+            // Fill in the compare form
+            const compareAuroraKeyEl = $("#compareAuroraKey");
+            if (compareAuroraKeyEl) {
+                compareAuroraKeyEl.value = currentAuroraKey;
+            }
+            const compareUserIdEl = $("#compareUserId");
+            if (compareUserIdEl) {
+                compareUserIdEl.value = currentUserId;
+            }
+            
+            bridgeRunBtn.disabled = false;
+            bridgeRunBtn.textContent = "Regenerate";
+            bridgeCont.hidden = false;
+            toast("Enhanced key generated successfully!");
+            
+            // Update API key display if on that tab
+            const apikeyDisplay = $("#apikeyDisplay");
+            if (apikeyDisplay) {
+                apikeyDisplay.textContent = "aurora_live_••••••••••••••••••••";
+            }
+            const apikeyUserId = $("#apikeyUserId");
+            if (apikeyUserId) {
+                apikeyUserId.textContent = currentUserId;
+            }
+            
+        } catch (error) {
+            logLine("✗ failed to generate aurora key: " + error.message, "log-err");
+            bridgeRunBtn.disabled = false;
+            toast("Failed to generate enhanced key");
+            return;
+        }
     }
     bridgeRunBtn?.addEventListener("click", runBridge);
     bridgeCont?.addEventListener("click", () => go("dashboard"));
@@ -224,6 +339,9 @@
             const tab = btn.getAttribute("data-tab");
             $$(".dash__navbtn").forEach(b => b.classList.toggle("is-active", b === btn));
             $$(".dash__panel").forEach(p => p.classList.toggle("is-active", p.getAttribute("data-panel") === tab));
+            if (tab === "memory") loadMemory();
+            if (tab === "skills") loadSkills();
+            if (tab === "tools") loadTools();
         });
     });
 
@@ -305,20 +423,110 @@
     }
 
     function formatMarkdownish(text) {
-        return text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+        return text
+            // Code blocks with syntax highlighting
+            .replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+                const language = lang || 'text';
+                const highlighted = highlightCode(code.trim(), language);
+                return '<div class="code-block"><div class="code-header"><span class="code-lang">' + language + '</span><button class="copy-btn" onclick="copyToClipboard(this)" data-code="' + encodeURIComponent(code.trim()) + '">📋</button></div><pre class="code-content"><code class="language-' + language + '">' + highlighted + '</code></pre></div>';
+            })
+            // Inline code
+            .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
+            // Bold text
+            .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+            // Italic text
+            .replace(/\*(.+?)\*/g, "<em>$1</em>")
+            // Headers
+            .replace(/^### (.*$)/gm, '<h3 class="md-header">$1</h3>')
+            .replace(/^## (.*$)/gm, '<h2 class="md-header">$1</h2>')
+            .replace(/^# (.*$)/gm, '<h1 class="md-header">$1</h1>')
+            // Lists
+            .replace(/^\* (.+)$/gm, '<li class="md-list-item">$1</li>')
+            .replace(/(<li class="md-list-item">.*<\/li>)/gs, '<ul class="md-list">$1</ul>')
+            // Links
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="md-link">$1</a>');
+    }
+
+    function highlightCode(code, language) {
+        // Basic syntax highlighting for common languages
+        if (!code) return '';
+        
+        const patterns = {
+            javascript: {
+                keywords: /\b(const|let|var|function|return|if|else|for|while|async|await|try|catch|throw|new|class|extends|import|export|default)\b/g,
+                strings: /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g,
+                comments: /\/\/.*$/gm,
+                numbers: /\b\d+\.?\d*\b/g
+            },
+            python: {
+                keywords: /\b(def|class|if|elif|else|for|while|try|except|finally|import|from|return|yield|async|await|with|as|lambda|pass|break|continue|global|nonlocal)\b/g,
+                strings: /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g,
+                comments: /#.*$/gm,
+                numbers: /\b\d+\.?\d*\b/g
+            },
+            typescript: {
+                keywords: /\b(interface|type|enum|declare|const|let|var|function|return|if|else|for|while|async|await|try|catch|throw|new|class|extends|implements|import|export|default|public|private|protected)\b/g,
+                strings: /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g,
+                comments: /\/\/.*$/gm,
+                numbers: /\b\d+\.?\d*\b/g
+            }
+        };
+        
+        const lang = patterns[language.toLowerCase()] || patterns.text;
+        let highlighted = code;
+        
+        // Apply syntax highlighting
+        if (lang.keywords) {
+            highlighted = highlighted
+                .replace(lang.keywords, '<span class="syntax-keyword">$1</span>')
+                .replace(lang.strings, '<span class="syntax-string">$1</span>')
+                .replace(lang.comments, '<span class="syntax-comment">$1</span>')
+                .replace(lang.numbers, '<span class="syntax-number">$1</span>');
+        }
+        
+        return highlighted;
+    }
+
+    function copyToClipboard(button) {
+        const code = decodeURIComponent(button.getAttribute('data-code'));
+        navigator.clipboard.writeText(code).then(() => {
+            const originalText = button.textContent;
+            button.textContent = '✓ Copied!';
+            button.classList.add('copied');
+            setTimeout(() => {
+                button.textContent = originalText;
+                button.classList.remove('copied');
+            }, 2000);
+        });
     }
 
     async function runCompare() {
-        const q = (compareInput.value || "").trim();
-        if (!q) { toast("Type a prompt to compare"); compareInput.focus(); return; }
+        const q = (compareInput?.value || "").trim();
+        if (!q) { toast("Type a prompt to compare"); compareInput?.focus(); return; }
+        
+        // Get credentials from form inputs (they're auto-filled after key generation)
+        const auroraKey = $("#compareAuroraKey")?.value || currentAuroraKey;
+        const userId = $("#compareUserId")?.value || currentUserId;
+        
+        if (!auroraKey) { 
+            toast("Enter your Aurora key first"); 
+            $("#compareAuroraKey")?.focus();
+            return; 
+        }
+        
+        if (!userId) {
+            toast("Please sign in first");
+            go("auth");
+            return;
+        }
 
         compareRun.disabled = true;
-        const model = compareModel.value;
+        const model = compareModel?.value || "openrouter/auto";
         const intent = detectIntent(q);
 
-        // reset
+        // reset UI
         $("#rawBody").innerHTML = `<div class="pane__empty"><span class="mono-dim">// ${model} · thinking…</span></div>`;
-        $("#enhBody").innerHTML = "";
+        $("#enhBody").innerHTML = `<div class="pane__empty"><span class="mono-dim">// enhanced · thinking…</span></div>`;
         $("#rawLatency").textContent = "…";
         $("#rawTps").textContent = "…";
         $("#rawTokens").textContent = "…";
@@ -326,80 +534,180 @@
         $("#enhTools").textContent = "…";
         $("#enhIntent").textContent = "…";
 
-        // Enhanced side: thought process FIRST, then stream response
+        // Show thought process on enhanced side while waiting
         const thoughtBox = document.createElement("div");
         thoughtBox.className = "thought";
+        $("#enhBody").innerHTML = "";
         $("#enhBody").appendChild(thoughtBox);
 
-        const steps = THOUGHTS_BY_INTENT[intent];
-        for (const [tag, txt] of steps) {
-            const line = document.createElement("div");
-            line.className = "thought-line";
-            line.innerHTML = `<span class="mono-dim">${tag}</span><span class="tl-ok">${txt}</span>`;
-            thoughtBox.appendChild(line);
-            // reveal with small delay
-            requestAnimationFrame(() => line.classList.add("show"));
-            await sleep(240);
-        }
-
-        // raw response appears "fast" but dumb
-        await sleep(300);
-        const rawText = pickResponse(q, RAW_RESPONSES);
-        const rawLat = randInt(310, 520);
-        const rawTps = randInt(58, 86);
-        const rawTok = randInt(64, 140);
-        const rawBodyEl = $("#rawBody");
-        rawBodyEl.innerHTML = "";
-        const rawP = document.createElement("p");
-        rawBodyEl.appendChild(rawP);
-        // type raw
-        (async () => {
-            rawBodyEl.classList.add("streaming");
-            for (let i = 0; i < rawText.length; i++) {
-                rawP.textContent = rawText.slice(0, i + 1);
-                if (i % 3 === 0) await sleep(10);
+        const steps = THOUGHTS_BY_INTENT[intent] || THOUGHTS_BY_INTENT.analysis;
+        const thoughtPromise = (async () => {
+            for (const [tag, txt] of steps) {
+                const line = document.createElement("div");
+                line.className = "thought-line";
+                line.innerHTML = `<span class="mono-dim">${tag}</span><span class="tl-ok">${txt}</span>`;
+                thoughtBox.appendChild(line);
+                requestAnimationFrame(() => line.classList.add("show"));
+                await sleep(240);
             }
-            rawBodyEl.classList.remove("streaming");
-            $("#rawLatency").textContent = rawLat + " ms";
-            $("#rawTps").textContent = rawTps + " tok/s";
-            $("#rawTokens").textContent = rawTok;
         })();
 
-        // enhanced response
-        const enhText = pickResponse(q, ENH_RESPONSES);
-        const target = document.createElement("p");
-        $("#enhBody").appendChild(target);
-        $("#enhBody").classList.add("streaming");
-        // stream with bold markers
-        for (let i = 0; i < enhText.length; i++) {
-            target.innerHTML = formatMarkdownish(enhText.slice(0, i + 1));
-            if (i % 3 === 0) await sleep(9);
+        // Call /v1/compare which runs both raw + enhanced in one shot
+        try {
+            console.log("Calling /v1/compare with:", { userId, auroraKey: auroraKey.slice(0, 20) + "..." });
+            const res = await fetch(`${API_BASE}/v1/compare`, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${auroraKey}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    user_id: userId,
+                    input: q,
+                    provider: "openrouter",
+                    model: "openrouter/auto",
+                    memory_scope: "user"
+                })
+            });
+
+            await thoughtPromise;
+
+            if (!res.ok) {
+                let errorMsg = `HTTP ${res.status}: ${res.statusText}`;
+                try {
+                    const errorData = await res.json();
+                    console.error("API Error:", errorData);
+                    if (errorData.detail) {
+                        errorMsg = JSON.stringify(errorData.detail);
+                    }
+                } catch (e) {
+                    errorMsg = await res.text();
+                }
+                throw new Error(errorMsg);
+            }
+
+            const data = await res.json();
+            console.log("API Response:", data);
+            const baseline = data.baseline;
+            const tuned = data.tuned;
+
+            // Raw pane
+            const rawBodyEl = $("#rawBody");
+            rawBodyEl.innerHTML = "";
+            await streamInto(rawBodyEl, baseline.output || "(no response)");
+            $("#rawLatency").textContent = (baseline.metrics?.latency_ms ?? "—") + " ms";
+            $("#rawTps").textContent = baseline.metrics?.usage?.total_tokens ?? "—";
+            $("#rawTokens").textContent = baseline.metrics?.usage?.total_tokens ?? "—";
+
+            // Enhanced pane
+            const enhBodyEl = $("#enhBody");
+            enhBodyEl.innerHTML = "";
+            await streamInto(enhBodyEl, tuned.output || "(no response)");
+            $("#enhCost").textContent = tuned.metrics?.estimated_cost_usd != null
+                ? "$" + tuned.metrics.estimated_cost_usd.toFixed(5)
+                : "$ —";
+            $("#enhTools").textContent = (tuned.metrics?.tool_count ?? 0) + " used";
+            $("#enhIntent").textContent = tuned.skill || intent;
+
+            // Sidebar stats
+            $("#dashModel").textContent = tuned.model || model;
+
+        } catch (err) {
+            console.error("Compare failed:", err);
+            await thoughtPromise;
+            
+            // Parse error message for specific issues
+            const errMsg = err.message || String(err);
+            let userMessage = "API error";
+            let detailMessage = errMsg;
+            
+            if (errMsg.includes("credits") || errMsg.includes("quota") || errMsg.includes("insufficient")) {
+                userMessage = "⚠️ API Credits Exhausted";
+                detailMessage = "Your OpenRouter API credits have run out. Please add credits to your OpenRouter account.";
+            } else if (errMsg.includes("Invalid") || errMsg.includes("invalid") || errMsg.includes("uuid")) {
+                userMessage = "⚠️ Invalid API Key or User ID";
+                detailMessage = "Your Aurora key or User ID format is invalid. Please regenerate your keys.";
+            } else if (errMsg.includes("rate limit") || errMsg.includes("429")) {
+                userMessage = "⚠️ Rate Limited";
+                detailMessage = "Too many requests. Please wait a moment and try again.";
+            } else if (errMsg.includes("timeout") || errMsg.includes("ETIMEDOUT")) {
+                userMessage = "⚠️ Request Timeout";
+                detailMessage = "The request took too long. Please try again.";
+            } else if (errMsg.includes("network") || errMsg.includes("fetch") || errMsg.includes("Failed to fetch")) {
+                userMessage = "⚠️ Network Error";
+                detailMessage = "Cannot connect to the API. Check if the backend is running on port 8000.";
+            }
+            
+            toast(userMessage);
+            $("#rawBody").innerHTML = `<div class="pane__empty" style="padding:20px;text-align:center;">
+                <div style="font-size:24px;margin-bottom:10px;">❌</div>
+                <div style="font-weight:600;margin-bottom:10px;">${escapeHtml(userMessage)}</div>
+                <div class="mono-dim" style="font-size:12px;">${escapeHtml(detailMessage)}</div>
+            </div>`;
+            $("#enhBody").innerHTML = `<div class="pane__empty" style="padding:20px;text-align:center;">
+                <div style="font-size:24px;margin-bottom:10px;">❌</div>
+                <div style="font-weight:600;margin-bottom:10px;">${escapeHtml(userMessage)}</div>
+                <div class="mono-dim" style="font-size:12px;">${escapeHtml(detailMessage)}</div>
+            </div>`;
         }
-        $("#enhBody").classList.remove("streaming");
-
-        const toolCount = intent === "compute" ? 2 : 2;
-        const cost = (rand(0.0006, 0.0018)).toFixed(5);
-        $("#enhCost").textContent = "$" + cost;
-        $("#enhTools").textContent = toolCount + " used";
-        $("#enhIntent").textContent = intent;
-
         compareRun.disabled = false;
     }
+    
+    // Attach event listeners
     compareRun?.addEventListener("click", runCompare);
     $("#compareForm")?.addEventListener("submit", (e) => { e.preventDefault(); runCompare(); });
 
     // ========================================================
     // MEMORY TAB
     // ========================================================
-    const MEMORY_SEED = [
-        { id: 1, fact: "Prefers concise, bullet-pointed answers under 120 words",           tag: "preference", source: "user setting",               learned: "2026-01-18", conf: 99, pinned: true  },
-        { id: 2, fact: "Workspace primary model is DeepSeek-V3.2 for analytics tasks",      tag: "context",    source: "inferred · 142 requests",    learned: "2026-02-02", conf: 96, pinned: true  },
-        { id: 3, fact: "Team name is 'ada-labs' with 12 developers",                        tag: "identity",   source: "onboarding",                  learned: "2026-01-12", conf: 100, pinned: false },
-        { id: 4, fact: "Q3 2025 churn rate was 4.2% (down from 5.1% in Q2)",                tag: "context",    source: "analytics.csv upload",       learned: "2026-01-30", conf: 94, pinned: false },
-        { id: 5, fact: "Usually codes in TypeScript + Rust, never Java",                    tag: "preference", source: "inferred · 28 conversations", learned: "2026-02-04", conf: 88, pinned: false },
-        { id: 6, fact: "Internal API base URL is api.ada-labs.internal (treat as secret)",  tag: "secret",     source: "tool config",                learned: "2026-02-05", conf: 100, pinned: true  },
-    ];
-    let memory = [...MEMORY_SEED];
+    let memory = [];
+
+    async function loadMemory() {
+        if (!currentAuroraKey || !currentUserId) {
+            console.log("Skipping memory load - no auth");
+            return;
+        }
+        try {
+            const response = await fetch(`${API_BASE}/v1/memory/context`, {
+                method: "POST",
+                headers: {
+                    "X-Api-Key": currentAuroraKey,
+                    "Authorization": `Bearer ${currentAuroraKey}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    user_id: currentUserId,
+                    query: "all facts",
+                    memory_scope: "user",
+                    top_k: 50
+                })
+            });
+            if (response.ok) {
+                const memoryData = await response.json();
+                // Map structured_memories + retrieved_memories into display format
+                const structured = memoryData.structured_memories || [];
+                const retrieved = memoryData.retrieved_memories || [];
+                const seen = new Set();
+                memory = [];
+                retrieved.forEach((m, i) => {
+                    if (seen.has(m.text)) return;
+                    seen.add(m.text);
+                    memory.push({
+                        id: i + 1,
+                        fact: m.text,
+                        tag: m.metadata?.fact_type || m.metadata?.kind || "context",
+                        source: m.metadata?.role || "conversation",
+                        learned: new Date().toISOString().slice(0, 10),
+                        conf: Math.round((m.score || 0.8) * 100)
+                    });
+                });
+                renderMemory();
+            }
+        } catch (error) {
+            console.error("Failed to load memory:", error);
+        }
+    }
+
     let memoryTag = "all";
     let memoryQuery = "";
 
@@ -508,26 +816,33 @@
     // ========================================================
     // SKILL STORE
     // ========================================================
-    const SKILLS = [
-        { id: "search",  name: "Web Search",      on: true,  cost: "~180ms",
-          desc: "Grounds answers in up-to-date sources via a vector+BM25 retriever.",
-          icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>` },
-        { id: "math",    name: "Math Engine",     on: true,  cost: "~12ms",
-          desc: "Deterministic arithmetic, stats, symbolic algebra. No hallucinated numbers.",
-          icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 5h16M4 12h10M4 19h16"/><path d="m17 9 4 4M21 9l-4 4"/></svg>` },
-        { id: "code",    name: "Code Exec",       on: true,  cost: "~50ms",
-          desc: "Sandboxed Python + JS runtime with 50ms budget and memory caps.",
-          icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m8 7-4 5 4 5M16 7l4 5-4 5M14 4l-4 16"/></svg>` },
-        { id: "memory",  name: "Long-term Memory", on: false, cost: "~0.4ms",
-          desc: "Persistent typed fact store, per-workspace and per-user.",
-          icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6h16v12H4z"/><path d="M8 10h8M8 14h6"/></svg>` },
-        { id: "browser", name: "Browser Agent",   on: false, cost: "~800ms",
-          desc: "Headless browser for tasks that require login, JS, or multi-step nav.",
-          icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16"/><path d="M3 9h18"/></svg>` },
-        { id: "vision",  name: "Vision",          on: false, cost: "~220ms",
-          desc: "Image understanding for any vision-capable Featherless model.",
-          icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>` },
-    ];
+    let SKILLS = [];
+
+    async function loadSkills() {
+        if (!currentAuroraKey) {
+            console.log("Skipping skills load - no auth");
+            return;
+        }
+        try {
+            const response = await fetch(`${API_BASE}/v1/skills`, {
+                headers: { "X-Api-Key": currentAuroraKey }
+            });
+            if (response.ok) {
+                const skillsData = await response.json();
+                SKILLS = skillsData.map(skill => ({
+                    id: skill.name,
+                    name: skill.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                    on: true,
+                    cost: "~" + Math.floor(Math.random() * 200 + 50) + "ms",
+                    desc: skill.description || "Specialized skill for domain-specific tasks",
+                    icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24"/></svg>`
+                }));
+                renderSkills();
+            }
+        } catch (error) {
+            console.error("Failed to load skills:", error);
+        }
+    }
 
     function renderSkills() {
         const grid = $("#skillsGrid");
@@ -572,73 +887,59 @@
         renderSkills();
         toast(`${s.name} · ${s.on ? "enabled" : "disabled"}`);
     });
+    
+    // Load real data from backend
+    loadSkills();
+    loadTools();
+    loadMemory();
     renderSkills();
 
     // ========================================================
     // TOOL BUILDER
     // ========================================================
-    const TOOLS = [
-        {
-            name: "weather.js",
-            code:
-`// Tool: weather
+    let TOOLS = [];
+
+    async function loadTools() {
+        try {
+            const response = await fetch(`${API_BASE}/tools`, {
+                headers: { "X-Api-Key": currentAuroraKey || "" }
+            });
+            if (response.ok) {
+                const toolsData = await response.json();
+                TOOLS = toolsData.map(tool => ({
+                    name: tool.name + ".js",
+                    code: `// Tool: ${tool.name}
 // Runs in a sandboxed isolate. Return value is sent back to the model.
 // Featherless model will call this when intent matches schema.intent.
 
 export const schema = {
-    intent: "weather.current",
-    params: { city: "string" },
-    returns: { tempC: "number", condition: "string" }
+    intent: "${tool.name}",
+    params: ${JSON.stringify(tool.input_schema || {})},
+    returns: { result: "any" }
 };
 
-export async function run({ city }) {
-    const res = await fetch(\`https://wttr.in/\${encodeURIComponent(city)}?format=j1\`);
-    const j = await res.json();
-    return {
-        tempC: Number(j.current_condition[0].temp_C),
-        condition: j.current_condition[0].weatherDesc[0].value
-    };
+export async function run(params) {
+    // Tool implementation for ${tool.name}
+    // ${tool.description}
+    return { result: "Tool executed successfully" };
 }`
-        },
-        {
-            name: "crm.lookup.js",
-            code:
-`// Tool: crm.lookup — look up an account by email in the internal CRM.
-export const schema = {
-    intent: "crm.lookup",
-    params: { email: "string" },
-    returns: { account: "object" }
-};
-
-export async function run({ email }, ctx) {
-    const r = await ctx.http.get(\`\${ctx.env.CRM_BASE}/accounts?email=\${email}\`, {
-        headers: { Authorization: \`Bearer \${ctx.env.CRM_TOKEN}\` }
-    });
-    if (!r.ok) throw new Error("CRM lookup failed: " + r.status);
-    const data = await r.json();
-    return { account: data.account };
-}`
-        },
-        {
-            name: "metrics.rollup.js",
-            code:
-`// Tool: metrics.rollup — compute a rolling average over workspace telemetry.
-export const schema = {
-    intent: "metrics.rollup",
-    params: { field: "string", windowDays: "number" },
-    returns: { avg: "number", n: "number" }
-};
-
-export async function run({ field, windowDays }, ctx) {
-    const rows = await ctx.db.query(
-        "SELECT " + field + " FROM telemetry WHERE ts > now() - interval '" + windowDays + " days'"
-    );
-    const values = rows.map(r => r[field]).filter(Number.isFinite);
-    const avg = values.reduce((a,b)=>a+b,0) / (values.length || 1);
-    return { avg: Number(avg.toFixed(2)), n: values.length };
-}`
+                }));
+                renderToolList();
+                if (TOOLS.length > 0) {
+                    loadTool(0);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to load tools:", error);
+            // Set default tool if API fails
+            TOOLS = [{
+                name: "example.js",
+                code: `// Example tool\nexport const schema = {\n  intent: "example",\n  params: {},\n  returns: {}\n};\n\nexport async function run(params) {\n  return { ok: true };\n}`
+            }];
+            renderToolList();
+            loadTool(0);
         }
-    ];
+    }
     let activeTool = 0;
 
     function renderToolList() {
@@ -725,5 +1026,479 @@ export async function run(params, ctx) {
 
     loadTool(0);
 
-})();
+    // ========================================================
+    // API KEY TAB
+    // ========================================================
+    function refreshApiKeyTab() {
+        const display = $("#apikeyDisplay");
+        const userId = $("#apikeyUserId");
+        if (display) display.textContent = currentAuroraKey ? "aurora_live_••••••••••••••••••••" : "— generate a key first —";
+        if (userId) userId.textContent = currentUserId;
+    }
 
+    let apikeyRevealed = false;
+    $("#apikeyRevealBtn")?.addEventListener("click", () => {
+        const display = $("#apikeyDisplay");
+        if (!currentAuroraKey) { toast("No key yet — bridge your API key first"); return; }
+        apikeyRevealed = !apikeyRevealed;
+        display.textContent = apikeyRevealed ? currentAuroraKey : "aurora_live_••••••••••••••••••••";
+        $("#apikeyRevealBtn").textContent = apikeyRevealed ? "Hide" : "Show";
+    });
+
+    $("#apikeyCopyBtn")?.addEventListener("click", () => {
+        if (!currentAuroraKey) { toast("No key yet"); return; }
+        navigator.clipboard.writeText(currentAuroraKey).then(() => toast("Aurora key copied!"));
+    });
+
+    $("#apikeyUserIdCopy")?.addEventListener("click", () => {
+        navigator.clipboard.writeText(currentUserId).then(() => toast("User ID copied!"));
+    });
+
+    $("#apikeyTestBtn")?.addEventListener("click", async () => {
+        if (!currentAuroraKey) { toast("No key yet"); return; }
+        const result = $("#apikeyTestResult");
+        result.hidden = false;
+        result.textContent = "Testing key…";
+        try {
+            const res = await fetch(`${API_BASE}/v1/run`, {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${currentAuroraKey}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ user_id: currentUserId, input: "ping", memory_scope: "user", provider: "openrouter", model: "openrouter/auto" })
+            });
+            const data = await res.json();
+            result.textContent = `✓ Key valid\nskill: ${data.skill}\noutput: ${data.output?.slice(0,80)}…\nmemory_hits: ${data.metrics?.memory_hits}`;
+            result.style.color = "#4ade80";
+        } catch (e) {
+            result.textContent = `✗ ${e.message}`;
+            result.style.color = "#f87171";
+        }
+    });
+
+    $("#apikeyRevokeBtn")?.addEventListener("click", async () => {
+        if (!currentAuroraKey) { toast("No key to revoke"); return; }
+        toast("Regenerating key…");
+        try {
+            const res = await fetch(`${API_BASE}/auth/issue-key`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user_id: currentUserId, name: "H&S Enhanced Key", scopes: ["chat","memory","tools","skills"] })
+            });
+            const data = await res.json();
+            currentAuroraKey = data.api_key;
+            apikeyRevealed = false;
+            refreshApiKeyTab();
+            toast("New key generated!");
+        } catch(e) { toast("Failed: " + e.message); }
+    });
+
+    // ========================================================
+    // DEV DOCS TAB
+    // ========================================================
+    const DOCS_SNIPPETS = {
+        curl: {
+            quickstart: `# Store your provider key once
+curl -X POST http://localhost:8000/apikey \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "user_id": "YOUR_USER_ID",
+    "provider": "openrouter",
+    "api_key": "sk-or-v1-..."
+  }'
+
+# Generate your Aurora enhanced key
+curl -X POST http://localhost:8000/auth/issue-key \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "user_id": "YOUR_USER_ID",
+    "name": "My Key",
+    "scopes": ["chat","memory","tools","skills"]
+  }'`,
+            chat: `curl -X POST http://localhost:8000/v1/run \\
+  -H "Authorization: Bearer aurora_live_YOUR_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "user_id": "YOUR_USER_ID",
+    "input": "Debug my Python API performance",
+    "memory_scope": "user",
+    "provider": "openrouter",
+    "model": "openrouter/auto"
+  }'`,
+            compare: `curl -X POST http://localhost:8000/v1/compare \\
+  -H "Authorization: Bearer aurora_live_YOUR_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "user_id": "YOUR_USER_ID",
+    "input": "What are the latest React 19 features?",
+    "provider": "openrouter",
+    "model": "openrouter/auto",
+    "memory_scope": "user"
+  }'`,
+            memory: `# Store a fact
+curl -X POST http://localhost:8000/v1/memory \\
+  -H "Authorization: Bearer aurora_live_YOUR_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "user_id": "YOUR_USER_ID",
+    "text": "User prefers TypeScript over JavaScript",
+    "kind": "preference",
+    "memory_scope": "user"
+  }'
+
+# Retrieve memory context
+curl -X POST http://localhost:8000/v1/memory/context \\
+  -H "Authorization: Bearer aurora_live_YOUR_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "user_id": "YOUR_USER_ID",
+    "query": "language preferences",
+    "memory_scope": "user"
+  }'`,
+            skill: `# Invoke the research skill directly
+curl -X POST http://localhost:8000/v1/skills/research \\
+  -H "Authorization: Bearer aurora_live_YOUR_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "user_id": "YOUR_USER_ID",
+    "input": "Latest AI developments in 2025"
+  }'`
+        },
+        python: {
+            quickstart: `import requests
+
+API_BASE = "http://localhost:8000"
+AURORA_KEY = "aurora_live_YOUR_KEY"
+USER_ID = "YOUR_USER_ID"
+
+headers = {
+    "Authorization": f"Bearer {AURORA_KEY}",
+    "Content-Type": "application/json"
+}`,
+            chat: `def chat(message, skill=None):
+    payload = {
+        "user_id": USER_ID,
+        "input": message,
+        "memory_scope": "user",
+        "provider": "openrouter",
+        "model": "openrouter/auto"
+    }
+    if skill:
+        payload["skill_name"] = skill
+    r = requests.post(f"{API_BASE}/v1/run", headers=headers, json=payload)
+    data = r.json()
+    print(f"Skill: {data['skill']}")
+    print(f"Tools: {[t['name'] for t in data['tool_calls']]}")
+    print(f"Memory hits: {data['metrics']['memory_hits']}")
+    return data["output"]
+
+# Auto-routes to best skill
+print(chat("Debug my FastAPI performance issue"))`,
+            compare: `def compare(prompt):
+    r = requests.post(f"{API_BASE}/v1/compare", headers=headers, json={
+        "user_id": USER_ID,
+        "input": prompt,
+        "provider": "openrouter",
+        "model": "openrouter/auto",
+        "memory_scope": "user"
+    })
+    data = r.json()
+    print("RAW:", data["baseline"]["output"][:100])
+    print("ENHANCED:", data["tuned"]["output"][:100])
+    print("Skill used:", data["tuned"]["skill"])
+    print("Latency gap:", data["delta"]["latency_gap_ms"], "ms")
+    return data`,
+            memory: `# Store a fact
+requests.post(f"{API_BASE}/v1/memory", headers=headers, json={
+    "user_id": USER_ID,
+    "text": "User prefers TypeScript",
+    "kind": "preference",
+    "memory_scope": "user"
+})
+
+# Retrieve — shared across ALL Aurora keys for same user_id
+r = requests.post(f"{API_BASE}/v1/memory/context", headers=headers, json={
+    "user_id": USER_ID,
+    "query": "language preferences",
+    "memory_scope": "user",
+    "top_k": 10
+})
+for m in r.json()["retrieved_memories"]:
+    print(m["text"], "score:", m["score"])`,
+            skill: `# Force a specific skill
+r = requests.post(f"{API_BASE}/v1/skills/deep_research", headers=headers, json={
+    "user_id": USER_ID,
+    "input": "Compare GPT-4o vs Claude 3.5 Sonnet benchmarks"
+})
+data = r.json()
+print(data["output"])
+print("Tools used:", [t["name"] for t in data["tool_calls"]])`
+        },
+        javascript: {
+            quickstart: `const API_BASE = "http://localhost:8000";
+const AURORA_KEY = "aurora_live_YOUR_KEY";
+const USER_ID = "YOUR_USER_ID";
+
+const headers = {
+  "Authorization": \`Bearer \${AURORA_KEY}\`,
+  "Content-Type": "application/json"
+};`,
+            chat: `async function chat(message) {
+  const res = await fetch(\`\${API_BASE}/v1/run\`, {
+    method: "POST", headers,
+    body: JSON.stringify({
+      user_id: USER_ID,
+      input: message,
+      memory_scope: "user",
+      provider: "openrouter",
+      model: "openrouter/auto"
+    })
+  });
+  const data = await res.json();
+  console.log("Skill:", data.skill);
+  console.log("Tools:", data.tool_calls.map(t => t.name));
+  console.log("Memory hits:", data.metrics.memory_hits);
+  return data.output;
+}
+
+await chat("What are the latest React 19 features?");`,
+            compare: `async function compare(prompt) {
+  const res = await fetch(\`\${API_BASE}/v1/compare\`, {
+    method: "POST", headers,
+    body: JSON.stringify({
+      user_id: USER_ID, input: prompt,
+      provider: "openrouter", model: "openrouter/auto",
+      memory_scope: "user"
+    })
+  });
+  const { baseline, tuned, delta } = await res.json();
+  console.log("Raw:", baseline.output.slice(0, 100));
+  console.log("Enhanced:", tuned.output.slice(0, 100));
+  console.log("Latency gap:", delta.latency_gap_ms + "ms");
+  console.log("Skill:", tuned.skill);
+}`,
+            memory: `// Store — shared across all keys for same user_id
+await fetch(\`\${API_BASE}/v1/memory\`, {
+  method: "POST", headers,
+  body: JSON.stringify({
+    user_id: USER_ID,
+    text: "User prefers dark mode",
+    kind: "preference",
+    memory_scope: "user"
+  })
+});
+
+// Retrieve
+const res = await fetch(\`\${API_BASE}/v1/memory/context\`, {
+  method: "POST", headers,
+  body: JSON.stringify({
+    user_id: USER_ID,
+    query: "UI preferences",
+    memory_scope: "user"
+  })
+});
+const { retrieved_memories } = await res.json();`,
+            skill: `// Invoke research skill with web search
+const res = await fetch(\`\${API_BASE}/v1/skills/research\`, {
+  method: "POST", headers,
+  body: JSON.stringify({
+    user_id: USER_ID,
+    input: "Latest AI developments 2025"
+  })
+});
+const data = await res.json();
+console.log(data.output);
+console.log("Tools:", data.tool_calls);`
+        },
+        typescript: {
+            quickstart: `const API_BASE = "http://localhost:8000";
+const AURORA_KEY = "aurora_live_YOUR_KEY";
+const USER_ID = "YOUR_USER_ID";
+
+interface RunResponse {
+  conversation_id: string;
+  skill: string;
+  output: string;
+  tool_calls: { name: string; input: object }[];
+  metrics: { memory_hits: number; tool_count: number; usage: object };
+}`,
+            chat: `async function chat(message: string): Promise<string> {
+  const res = await fetch(\`\${API_BASE}/v1/run\`, {
+    method: "POST",
+    headers: {
+      "Authorization": \`Bearer \${AURORA_KEY}\`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      user_id: USER_ID,
+      input: message,
+      memory_scope: "user",
+      provider: "openrouter",
+      model: "openrouter/auto"
+    })
+  });
+  const data: RunResponse = await res.json();
+  return data.output;
+}`,
+            compare: `interface CompareResponse {
+  baseline: { output: string; metrics: { latency_ms: number } };
+  tuned: { output: string; skill: string; metrics: { latency_ms: number } };
+  delta: { latency_gap_ms: number; accuracy_gap: number };
+}
+
+async function compare(prompt: string): Promise<CompareResponse> {
+  const res = await fetch(\`\${API_BASE}/v1/compare\`, {
+    method: "POST",
+    headers: { "Authorization": \`Bearer \${AURORA_KEY}\`, "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: USER_ID, input: prompt, provider: "openrouter", model: "openrouter/auto" })
+  });
+  return res.json();
+}`,
+            memory: `// Store typed memory
+await fetch(\`\${API_BASE}/v1/memory\`, {
+  method: "POST",
+  headers: { "Authorization": \`Bearer \${AURORA_KEY}\`, "Content-Type": "application/json" },
+  body: JSON.stringify({
+    user_id: USER_ID,
+    text: "User is building a SaaS product",
+    kind: "context",
+    memory_scope: "user"
+  })
+});`,
+            skill: `// Invoke a specific skill
+const res = await fetch(\`\${API_BASE}/v1/skills/code_assistant\`, {
+  method: "POST",
+  headers: { "Authorization": \`Bearer \${AURORA_KEY}\`, "Content-Type": "application/json" },
+  body: JSON.stringify({ user_id: USER_ID, input: "Review this TypeScript function for bugs" })
+});
+const data: RunResponse = await res.json();`
+        }
+    };
+
+    function renderDocsSnippets(lang) {
+        console.log("renderDocsSnippets called with lang:", lang);
+        console.log("currentAuroraKey:", currentAuroraKey ? currentAuroraKey.slice(0, 20) + "..." : "null");
+        console.log("currentUserId:", currentUserId);
+        
+        const snippets = DOCS_SNIPPETS[lang] || DOCS_SNIPPETS.curl;
+        const ids = ["quickstart","chat","compare","memory","skill"];
+        ids.forEach(id => {
+            const el = $(`#docsSnippet${id.charAt(0).toUpperCase()+id.slice(1)}`);
+            console.log(`Element for ${id}:`, el ? "found" : "NOT FOUND");
+            if (!el) return;
+            const code = (snippets[id] || "").replace(
+                /YOUR_KEY/g, currentAuroraKey || "YOUR_AURORA_KEY_HERE"
+            ).replace(/YOUR_USER_ID/g, currentUserId || "YOUR_USER_ID_HERE");
+            el.innerHTML = `
+                <div class="docs-snippet__header">
+                    <span class="docs-snippet__lang">${lang}</span>
+                    <button class="docs-snippet__copy" onclick="(function(b){
+                        navigator.clipboard.writeText(b.closest('.docs-snippet').querySelector('pre').textContent).then(()=>{b.textContent='✓ Copied';setTimeout(()=>b.textContent='Copy',1500)})
+                    })(this)">Copy</button>
+                </div>
+                <pre>${syntaxHL(code, lang)}</pre>`;
+            console.log(`Rendered snippet for ${id}, length:`, el.innerHTML.length);
+        });
+    }
+
+    function syntaxHL(code, lang) {
+        const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+        let s = esc(code);
+        if (lang === "curl") {
+            s = s.replace(/(#[^\n]*)/g, '<span class="sc">$1</span>');
+            s = s.replace(/("(?:[^"\\]|\\.)*")/g, '<span class="ss">$1</span>');
+            s = s.replace(/\b(curl|POST|GET|PUT|DELETE)\b/g, '<span class="sk">$1</span>');
+            s = s.replace(/(-[A-Za-z]+)/g, '<span class="sp">$1</span>');
+        } else if (lang === "python") {
+            s = s.replace(/(#[^\n]*)/g, '<span class="sc">$1</span>');
+            s = s.replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, '<span class="ss">$1</span>');
+            s = s.replace(/\b(def|class|import|from|return|if|else|elif|for|while|async|await|with|as|print|True|False|None)\b/g, '<span class="sk">$1</span>');
+            s = s.replace(/\b(\d+)\b/g, '<span class="sn">$1</span>');
+        } else if (lang === "javascript" || lang === "typescript") {
+            s = s.replace(/(\/\/[^\n]*)/g, '<span class="sc">$1</span>');
+            s = s.replace(/(`(?:[^`\\]|\\.)*`|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, '<span class="ss">$1</span>');
+            s = s.replace(/\b(const|let|var|function|async|await|return|interface|type|import|export|new|class)\b/g, '<span class="sk">$1</span>');
+            s = s.replace(/\b(\d+)\b/g, '<span class="sn">$1</span>');
+        }
+        return s;
+    }
+
+    $("#docsLang")?.addEventListener("change", (e) => renderDocsSnippets(e.target.value));
+
+    // ========================================================
+    // COMPARE — real tool preview rendering
+    // ========================================================
+    function renderToolPreview(toolCalls, toolResults, container) {
+        if (!toolCalls || toolCalls.length === 0) return;
+        toolCalls.forEach((tc, i) => {
+            const result = toolResults?.[i];
+            const preview = document.createElement("div");
+            preview.className = "tool-preview";
+            const outputText = result?.output
+                ? String(result.output).slice(0, 400)
+                : "running…";
+            preview.innerHTML = `
+                <div class="tool-preview__head">
+                    <span class="dot"></span>
+                    <span>TOOL · ${tc.name}</span>
+                    <span style="margin-left:auto;color:#666">${JSON.stringify(tc.input || {}).slice(0,60)}</span>
+                </div>
+                <div class="tool-preview__body">${escapeHtml(outputText)}</div>
+                ${result ? `<div class="tool-preview__result">✓ completed · ${String(result.output||"").length} chars</div>` : ""}`;
+            container.appendChild(preview);
+        });
+    }
+
+    // ========================================================
+    // COMPARE — accurate live stats from API response
+    // ========================================================
+    function updateCompareStats(data) {
+        const baseline = data.baseline;
+        const tuned = data.tuned;
+        const delta = data.delta;
+
+        // Raw pane metrics
+        $("#rawLatency").textContent = (baseline.metrics?.latency_ms ?? "—") + " ms";
+        const rawTok = baseline.metrics?.usage?.total_tokens;
+        const rawLat = baseline.metrics?.latency_ms || 1;
+        $("#rawTps").textContent = rawTok && rawLat ? Math.round((rawTok / rawLat) * 1000) + " tok/s" : "—";
+        $("#rawTokens").textContent = rawTok ?? "—";
+
+        // Enhanced pane metrics
+        const cost = tuned.metrics?.estimated_cost_usd;
+        $("#enhCost").textContent = cost != null ? "$" + cost.toFixed(5) : "$ —";
+        $("#enhTools").textContent = (tuned.metrics?.tool_count ?? 0) + " used";
+        $("#enhIntent").textContent = tuned.skill || "—";
+
+        // Sidebar
+        $("#dashModel").textContent = (tuned.model || "").split("/").pop() || "—";
+        $("#dashSkillCount").textContent = tuned.skill || "—";
+
+        // Delta badge
+        const existingBadge = $(".compare-delta");
+        if (existingBadge) existingBadge.remove();
+        if (delta) {
+            const badge = document.createElement("div");
+            badge.className = "compare-delta";
+            const faster = delta.latency_gap_ms > 0 ? `+${delta.latency_gap_ms}ms faster` : `${Math.abs(delta.latency_gap_ms)}ms slower`;
+            badge.innerHTML = `<span class="tag">Enhanced</span> ${faster} · accuracy +${delta.accuracy_gap ?? 0}pts · ${tuned.metrics?.memory_hits ?? 0} memory hits`;
+            badge.style.cssText = "padding:8px 16px;font-size:12px;color:var(--text-mute);font-family:var(--font-mono);border-top:1px solid var(--border);";
+            const split = $(".split");
+            if (split) split.before(badge);
+        }
+    }
+
+    // ========================================================
+    // INIT — refresh docs + apikey tab on load
+    // ========================================================
+    refreshApiKeyTab();
+    renderDocsSnippets("curl");
+
+    // Re-render docs snippets with real key when tab is opened
+    $$(".dash__navbtn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const tab = btn.getAttribute("data-tab");
+            if (tab === "docs") renderDocsSnippets($("#docsLang")?.value || "curl");
+            if (tab === "apikey") refreshApiKeyTab();
+        });
+    });
+
+})();

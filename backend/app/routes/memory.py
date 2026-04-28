@@ -5,9 +5,9 @@ import uuid
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.core.config import get_settings
-from backend.app.db.session import get_db
-from backend.app.schemas.memory import (
+from app.core.config import get_settings
+from app.db.session import get_db
+from app.schemas.memory import (
     ContextMemoryResponse,
     ContextMessage,
     MemoryHit,
@@ -15,7 +15,7 @@ from backend.app.schemas.memory import (
     MemoryStoreRequest,
     StructuredMemoryItem,
 )
-from backend.app.services.memory_engine import MemoryEngine
+from app.services.memory_engine import MemoryEngine
 
 router = APIRouter(prefix="/memory", tags=["memory"])
 

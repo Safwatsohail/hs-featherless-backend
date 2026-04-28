@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Docs Rendering</title>
+    <style>
+        .docs-snippet { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+        .docs-snippet__header { background: #f0f0f0; padding: 5px; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Test Docs Rendering</h1>
+    <div id="docsSnippetQuickstart" class="docs-snippet"></div>
+    
+    <script>
+        const DOCS_SNIPPETS = {
+            curl: {
+                quickstart: `# Store your provider key once
+curl -X POST http://localhost:8000/apikey \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "user_id": "YOUR_USER_ID",
+    "provider": "openrouter",
+    "api_key": "sk-or-v1-..."
+  }'`
+            }
+        };
+        
+        function renderDocsSnippets(lang) {
+            console.log("Rendering docs for lang:", lang);
+            const snippets = DOCS_SNIPPETS[lang];
+            const el = document.getElementById("docsSnippetQuickstart");
+            console.log("Element:", el);
+            const code = snippets.quickstart;
+            console.log("Code length:", code.length);
+            el.innerHTML = `
+                <div class="docs-snippet__header">
+                    <span class="docs-snippet__lang">${lang}</span>
+                </div>
+                <pre>${code}</pre>`;
+            console.log("Rendered!");
+        }
+        
+        renderDocsSnippets("curl");
+    </script>
+</body>
+</html>

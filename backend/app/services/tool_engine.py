@@ -21,9 +21,9 @@ from pypdf import PdfReader
 from sqlalchemy import select, text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.models.external_tool import ExternalTool
-from backend.app.schemas.tool import ExternalToolCreate
-from backend.app.schemas.tool import ToolDescriptor
+from app.models.external_tool import ExternalTool
+from app.schemas.tool import ExternalToolCreate
+from app.schemas.tool import ToolDescriptor
 
 
 class ToolError(RuntimeError):

@@ -8,13 +8,13 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.models.conversation import Conversation, Message
-from backend.app.schemas.chat import ToolCall
-from backend.app.services.api_key_service import ApiKeyService
-from backend.app.services.llm_client import LLMClient, LLMError
-from backend.app.services.memory_engine import MemoryEngine
-from backend.app.services.skill_engine import SkillEngine
-from backend.app.services.tool_engine import ToolEngine, ToolError
+from app.models.conversation import Conversation, Message
+from app.schemas.chat import ToolCall
+from app.services.api_key_service import ApiKeyService
+from app.services.llm_client import LLMClient, LLMError
+from app.services.memory_engine import MemoryEngine
+from app.services.skill_engine import SkillEngine
+from app.services.tool_engine import ToolEngine, ToolError
 
 logger = logging.getLogger(__name__)
 
@@ -213,6 +213,38 @@ class Orchestrator:
 
         final = await llm.generate(model=selected_model, messages=messages)
         output_text = final.content.strip()
+        
+        # Clean up model's internal reasoning/thinking process
+        # Some models include their reasoning in the response, we want just the final answer
+        if "Here's my response to the given prompt:" in output_text:
+            # Extract everything after this phrase
+            parts = output_text.split("Here's my response to the given prompt:", 1)
+            if len(parts) > 1:
+                output_text = parts[1].strip().strip('"').strip()
+        
+        # Remove common thinking patterns
+        thinking_patterns = [
+            "I'm just a text-based model and don't have the ability to",
+            "I can only respond based on the user prompt given to me.",
+            "Here's my response to the given prompt:",
+        ]
+        for pattern in thinking_patterns:
+            if pattern in output_text:
+                # Try to extract just the actual answer
+                lines = output_text.split('\n')
+                cleaned_lines = []
+                skip_mode = False
+                for line in lines:
+                    if any(p in line for p in thinking_patterns):
+                        skip_mode = True
+                        continue
+                    if skip_mode and line.strip() and not any(p in line for p in thinking_patterns):
+                        skip_mode = False
+                    if not skip_mode:
+                        cleaned_lines.append(line)
+                if cleaned_lines:
+                    output_text = '\n'.join(cleaned_lines).strip()
+                break
 
         await self._store_turn(
             user_id=user_id,
@@ -250,13 +282,14 @@ class Orchestrator:
         memory_scope: str,
         context_key: str | None,
     ) -> Conversation:
+        uid_str = str(user_id)
         if conversation_id:
-            res = await self.db.execute(select(Conversation).where(Conversation.id == conversation_id))
+            res = await self.db.execute(select(Conversation).where(Conversation.id == str(conversation_id)))
             conv = res.scalar_one_or_none()
-            if conv and conv.user_id == user_id:
+            if conv and conv.user_id == uid_str:
                 return conv
 
-        conv = Conversation(user_id=user_id, title=title, memory_scope=memory_scope, context_key=context_key)
+        conv = Conversation(user_id=uid_str, title=title, memory_scope=memory_scope, context_key=context_key)
         self.db.add(conv)
         await self.db.commit()
         await self.db.refresh(conv)
@@ -283,6 +316,9 @@ class Orchestrator:
         parts.append(
             "\nResponse rules:\n"
             "- Answer directly and concretely.\n"
+            "- Do NOT include your thinking process or internal reasoning.\n"
+            "- Do NOT say things like 'I'm just a text-based model' or 'Here's my response'.\n"
+            "- Just provide the answer directly without meta-commentary.\n"
             "- Prefer short sections over long paragraphs.\n"
             "- If tool results were provided in the conversation, ground your answer in those results.\n"
             "- If evidence is missing, say what is missing instead of guessing.\n"
@@ -383,11 +419,11 @@ class Orchestrator:
         context_key: str | None,
     ) -> None:
         self.db.add(
-            Message(conversation_id=conversation_id, user_id=user_id, role="user", content=user_input)
+            Message(conversation_id=str(conversation_id), user_id=str(user_id), role="user", content=user_input)
         )
         self.db.add(
             Message(
-                conversation_id=conversation_id, user_id=user_id, role="assistant", content=assistant_output
+                conversation_id=str(conversation_id), user_id=str(user_id), role="assistant", content=assistant_output
             )
         )
         await self.db.commit()

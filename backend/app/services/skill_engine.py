@@ -6,8 +6,8 @@ from collections.abc import Iterable
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.models import Skill
-from backend.app.services.skill_generator import GENERATED_SKILL_CATALOG
+from app.models import Skill
+from app.services.skill_generator import GENERATED_SKILL_CATALOG
 
 
 @dataclass(frozen=True)

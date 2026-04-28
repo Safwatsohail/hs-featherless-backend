@@ -6,22 +6,22 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 
-from backend.app.core.config import get_settings
-from backend.app.core.logging import configure_logging
-from backend.app.db.init_db import init_db
-from backend.app.db.session import async_session, engine
-from backend.app.routes.apikey import router as apikey_router
-from backend.app.routes.aurora_auth import router as aurora_auth_router
-from backend.app.routes.chat import router as chat_router
-from backend.app.routes.memory import router as memory_router
-from backend.app.routes.public_api import public_router, router as public_api_router
-from backend.app.routes.skills import router as skills_router
-from backend.app.routes.tools import router as tools_router
-from backend.app.routes.web import router as web_router
-from backend.app.services.cache_layer import CacheLayer
-from backend.app.services.skill_engine import SkillEngine
-from backend.app.services.vector_store import ChromaVectorStore, InMemoryVectorStore
-from backend.app.utils.crypto import CryptoBox
+from app.core.config import get_settings
+from app.core.logging import configure_logging
+from app.db.init_db import init_db
+from app.db.session import async_session, engine
+from app.routes.apikey import router as apikey_router
+from app.routes.aurora_auth import router as aurora_auth_router
+from app.routes.chat import router as chat_router
+from app.routes.memory import router as memory_router
+from app.routes.public_api import public_router, router as public_api_router
+from app.routes.skills import router as skills_router
+from app.routes.tools import router as tools_router
+from app.routes.web import router as web_router
+from app.services.cache_layer import CacheLayer
+from app.services.skill_engine import SkillEngine
+from app.services.vector_store import ChromaVectorStore, InMemoryVectorStore
+from app.utils.crypto import CryptoBox
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ def create_app() -> FastAPI:
     app.include_router(web_router)
     
     # Import and include streaming router
-    from backend.app.routes.streaming import router as streaming_router
+    from app.routes.streaming import router as streaming_router
     app.include_router(streaming_router)
 
     @app.get("/healthz", tags=["health"])

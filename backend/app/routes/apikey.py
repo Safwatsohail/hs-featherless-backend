@@ -3,9 +3,9 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.db.session import get_db
-from backend.app.schemas.apikey import ApiKeySaveRequest, ApiKeySaveResponse
-from backend.app.services.api_key_service import ApiKeyService
+from app.db.session import get_db
+from app.schemas.apikey import ApiKeySaveRequest, ApiKeySaveResponse
+from app.services.api_key_service import ApiKeyService
 
 router = APIRouter(tags=["apikey"])
 

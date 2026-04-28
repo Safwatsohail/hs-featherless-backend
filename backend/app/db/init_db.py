@@ -4,8 +4,8 @@ import logging
 
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from backend.app.db.base import Base
-from backend.app.models import (  # noqa: F401
+from app.db.base import Base
+from app.models import (  # noqa: F401
     ApiKey,
     AuroraApiKey,
     Conversation,

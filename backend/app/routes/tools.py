@@ -8,10 +8,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.core.config import get_settings
-from backend.app.db.session import get_db
-from backend.app.models import ApiKey, Conversation, MemoryMetadata, Message, Skill
-from backend.app.schemas.tool import (
+from app.core.config import get_settings
+from app.db.session import get_db
+from app.models import ApiKey, Conversation, MemoryMetadata, Message, Skill
+from app.schemas.tool import (
     ExternalToolCreate,
     OverviewStats,
     ToolDescriptor,
@@ -19,7 +19,7 @@ from backend.app.schemas.tool import (
     ToolRunResponse,
     ToolStatsItem,
 )
-from backend.app.services.tool_engine import ToolEngine, ToolError
+from app.services.tool_engine import ToolEngine, ToolError
 
 router = APIRouter(prefix="/tools", tags=["tools"])
 

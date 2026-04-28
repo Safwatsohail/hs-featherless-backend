@@ -13,15 +13,15 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.core.config import get_settings
-from backend.app.db.session import get_db
-from backend.app.schemas.chat import ChatRequest
-from backend.app.services.api_key_service import ApiKeyService
-from backend.app.services.llm_client import LLMError
-from backend.app.services.memory_engine import MemoryEngine
-from backend.app.services.orchestrator import Orchestrator
-from backend.app.services.skill_engine import SkillEngine
-from backend.app.services.tool_engine import ToolEngine, ToolError
+from app.core.config import get_settings
+from app.db.session import get_db
+from app.schemas.chat import ChatRequest
+from app.services.api_key_service import ApiKeyService
+from app.services.llm_client import LLMError
+from app.services.memory_engine import MemoryEngine
+from app.services.orchestrator import Orchestrator
+from app.services.skill_engine import SkillEngine
+from app.services.tool_engine import ToolEngine, ToolError
 
 router = APIRouter(tags=["streaming"])
 

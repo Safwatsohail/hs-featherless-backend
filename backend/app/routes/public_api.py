@@ -5,10 +5,10 @@ from time import perf_counter
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.core.config import get_settings
-from backend.app.db.session import get_db
-from backend.app.schemas.memory import ContextMemoryRequest, ContextMemoryResponse, MemoryStoreRequest
-from backend.app.schemas.public_api import (
+from app.core.config import get_settings
+from app.db.session import get_db
+from app.schemas.memory import ContextMemoryRequest, ContextMemoryResponse, MemoryStoreRequest
+from app.schemas.public_api import (
     CompareDelta,
     CompareMetrics,
     CompareSide,
@@ -20,14 +20,14 @@ from backend.app.schemas.public_api import (
     SkillInvokeRequest,
     UsageSummary,
 )
-from backend.app.schemas.tool import ToolRunRequest, ToolRunResponse
-from backend.app.services.api_key_service import ApiKeyService
-from backend.app.services.aurora_auth_service import AuroraAuthService, resolve_aurora_auth
-from backend.app.services.llm_client import LLMClient, LLMError
-from backend.app.services.memory_engine import MemoryEngine
-from backend.app.services.orchestrator import Orchestrator
-from backend.app.services.skill_engine import SkillEngine
-from backend.app.services.tool_engine import ToolEngine, ToolError
+from app.schemas.tool import ToolRunRequest, ToolRunResponse
+from app.services.api_key_service import ApiKeyService
+from app.services.aurora_auth_service import AuroraAuthService, resolve_aurora_auth
+from app.services.llm_client import LLMClient, LLMError
+from app.services.memory_engine import MemoryEngine
+from app.services.orchestrator import Orchestrator
+from app.services.skill_engine import SkillEngine
+from app.services.tool_engine import ToolEngine, ToolError
 
 router = APIRouter(prefix="/v1", tags=["public-api"])
 public_router = APIRouter(tags=["public-api"])
@@ -143,7 +143,7 @@ def _score_efficiency(*, latency_ms: int, cost_usd: float, tool_count: int, memo
 
 
 def _to_context_response(snapshot: dict) -> ContextMemoryResponse:
-    from backend.app.schemas.memory import ContextMessage, MemoryHit, StructuredMemoryItem
+    from app.schemas.memory import ContextMessage, MemoryHit, StructuredMemoryItem
 
     return ContextMemoryResponse(
         memory_scope=snapshot["memory_scope"],
