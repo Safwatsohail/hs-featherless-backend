@@ -127,10 +127,10 @@
     display: block;
 }
 
-/* Syntax Highlighting - VS Code Dark+ Theme */
+/* Syntax Highlighting - VS Code Dark+ Theme - Enhanced */
 .syntax-keyword {
     color: #569cd6; /* Blue for keywords */
-    font-weight: 600;
+    font-weight: 700;
 }
 
 .syntax-string {
@@ -149,21 +149,36 @@
 
 .syntax-builtin {
     color: #4ec9b0; /* Cyan for built-in functions */
-    font-weight: 600;
+    font-weight: 700;
 }
 
 .syntax-function {
     color: #dcdcaa; /* Yellow for function names */
-    font-weight: 700;
+    font-weight: 800;
 }
 
 .syntax-class {
     color: #4ec9b0; /* Cyan for class names */
-    font-weight: 700;
+    font-weight: 800;
 }
 
 .syntax-constant {
     color: #569cd6; /* Blue for True/False/None */
+    font-weight: 700;
+}
+
+.syntax-decorator {
+    color: #c586c0; /* Purple for decorators */
+    font-weight: 600;
+}
+
+.syntax-special {
+    color: #9cdcfe; /* Light blue for self, this, cls */
+    font-style: italic;
+}
+
+.syntax-type {
+    color: #4ec9b0; /* Cyan for type annotations */
     font-weight: 600;
 }
 

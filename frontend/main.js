@@ -448,7 +448,7 @@
     }
 
     function highlightCode(code, language) {
-        // Enhanced syntax highlighting for common languages
+        // Enhanced syntax highlighting for common languages with better patterns
         if (!code) return '';
         
         // Escape HTML first
@@ -460,46 +460,88 @@
         const lang = language.toLowerCase();
         
         if (lang === 'python') {
-            // Python syntax highlighting
+            // Python syntax highlighting - comprehensive
             highlighted = highlighted
                 // Comments (must be first to avoid highlighting keywords in comments)
                 .replace(/(#.*$)/gm, '<span class="syntax-comment">$1</span>')
-                // Strings (triple quotes first, then single/double)
+                // Docstrings (triple quotes)
                 .replace(/("""[\s\S]*?"""|'''[\s\S]*?''')/g, '<span class="syntax-string">$1</span>')
+                // Strings (single/double quotes)
                 .replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, '<span class="syntax-string">$1</span>')
+                // Decorators
+                .replace(/(@\w+)/g, '<span class="syntax-decorator">$1</span>')
                 // Keywords
                 .replace(/\b(def|class|if|elif|else|for|while|try|except|finally|import|from|return|yield|async|await|with|as|lambda|pass|break|continue|global|nonlocal|raise|assert|del|in|is|not|and|or)\b/g, '<span class="syntax-keyword">$1</span>')
                 // Built-in functions
-                .replace(/\b(print|input|len|range|str|int|float|list|dict|set|tuple|bool|type|isinstance|enumerate|zip|map|filter|sum|max|min|abs|round|sorted|reversed|open|read|write|close)\b/g, '<span class="syntax-builtin">$1</span>')
+                .replace(/\b(print|input|len|range|str|int|float|list|dict|set|tuple|bool|type|isinstance|enumerate|zip|map|filter|sum|max|min|abs|round|sorted|reversed|open|read|write|close|super|property|staticmethod|classmethod)\b/g, '<span class="syntax-builtin">$1</span>')
                 // Function definitions (def function_name)
                 .replace(/\b(def)\s+([a-zA-Z_][a-zA-Z0-9_]*)/g, '<span class="syntax-keyword">$1</span> <span class="syntax-function">$2</span>')
                 // Class definitions (class ClassName)
                 .replace(/\b(class)\s+([a-zA-Z_][a-zA-Z0-9_]*)/g, '<span class="syntax-keyword">$1</span> <span class="syntax-class">$2</span>')
-                // Numbers
-                .replace(/\b(\d+\.?\d*)\b/g, '<span class="syntax-number">$1</span>')
+                // Numbers (including floats and hex)
+                .replace(/\b(0x[0-9a-fA-F]+|\d+\.?\d*)\b/g, '<span class="syntax-number">$1</span>')
                 // Boolean and None
-                .replace(/\b(True|False|None)\b/g, '<span class="syntax-constant">$1</span>');
+                .replace(/\b(True|False|None)\b/g, '<span class="syntax-constant">$1</span>')
+                // Self and cls
+                .replace(/\b(self|cls)\b/g, '<span class="syntax-special">$1</span>');
                 
         } else if (lang === 'javascript' || lang === 'js') {
-            // JavaScript syntax highlighting
+            // JavaScript syntax highlighting - comprehensive
             highlighted = highlighted
+                // Comments
                 .replace(/(\/\/.*$)/gm, '<span class="syntax-comment">$1</span>')
                 .replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="syntax-comment">$1</span>')
-                .replace(/(`(?:[^`\\]|\\.)*`|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, '<span class="syntax-string">$1</span>')
-                .replace(/\b(const|let|var|function|return|if|else|for|while|async|await|try|catch|throw|new|class|extends|import|export|default|case|switch|break|continue)\b/g, '<span class="syntax-keyword">$1</span>')
-                .replace(/\b(console|document|window|Array|Object|String|Number|Boolean|Math|Date|JSON|Promise|setTimeout|setInterval)\b/g, '<span class="syntax-builtin">$1</span>')
+                // Template literals
+                .replace(/(`(?:[^`\\]|\\.)*`)/g, '<span class="syntax-string">$1</span>')
+                // Strings
+                .replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, '<span class="syntax-string">$1</span>')
+                // Keywords
+                .replace(/\b(const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|async|await|try|catch|throw|new|class|extends|import|export|default|from|of)\b/g, '<span class="syntax-keyword">$1</span>')
+                // Built-in objects
+                .replace(/\b(console|document|window|Array|Object|String|Number|Boolean|Math|Date|JSON|Promise|setTimeout|setInterval|fetch|localStorage|sessionStorage)\b/g, '<span class="syntax-builtin">$1</span>')
+                // Function declarations
+                .replace(/\b(function)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)/g, '<span class="syntax-keyword">$1</span> <span class="syntax-function">$2</span>')
+                // Arrow functions
+                .replace(/\b([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*\(/g, '<span class="syntax-function">$1</span> = (')
+                // Numbers
                 .replace(/\b(\d+\.?\d*)\b/g, '<span class="syntax-number">$1</span>')
-                .replace(/\b(true|false|null|undefined)\b/g, '<span class="syntax-constant">$1</span>');
+                // Boolean and null
+                .replace(/\b(true|false|null|undefined)\b/g, '<span class="syntax-constant">$1</span>')
+                // this keyword
+                .replace(/\b(this)\b/g, '<span class="syntax-special">$1</span>');
                 
         } else if (lang === 'typescript' || lang === 'ts') {
-            // TypeScript syntax highlighting
+            // TypeScript syntax highlighting - comprehensive
             highlighted = highlighted
+                // Comments
                 .replace(/(\/\/.*$)/gm, '<span class="syntax-comment">$1</span>')
                 .replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="syntax-comment">$1</span>')
-                .replace(/(`(?:[^`\\]|\\.)*`|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, '<span class="syntax-string">$1</span>')
-                .replace(/\b(interface|type|enum|declare|const|let|var|function|return|if|else|for|while|async|await|try|catch|throw|new|class|extends|implements|import|export|default|public|private|protected|readonly)\b/g, '<span class="syntax-keyword">$1</span>')
+                // Template literals
+                .replace(/(`(?:[^`\\]|\\.)*`)/g, '<span class="syntax-string">$1</span>')
+                // Strings
+                .replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, '<span class="syntax-string">$1</span>')
+                // Keywords (including TS-specific)
+                .replace(/\b(interface|type|enum|declare|namespace|module|abstract|implements|readonly|const|let|var|function|return|if|else|for|while|async|await|try|catch|throw|new|class|extends|import|export|default|public|private|protected)\b/g, '<span class="syntax-keyword">$1</span>')
+                // Type annotations
+                .replace(/:\s*([A-Z][a-zA-Z0-9_<>[\]|&]*)/g, ': <span class="syntax-type">$1</span>')
+                // Numbers
                 .replace(/\b(\d+\.?\d*)\b/g, '<span class="syntax-number">$1</span>')
+                // Boolean and null
                 .replace(/\b(true|false|null|undefined)\b/g, '<span class="syntax-constant">$1</span>');
+                
+        } else if (lang === 'bash' || lang === 'sh' || lang === 'shell') {
+            // Bash syntax highlighting
+            highlighted = highlighted
+                // Comments
+                .replace(/(#.*$)/gm, '<span class="syntax-comment">$1</span>')
+                // Strings
+                .replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, '<span class="syntax-string">$1</span>')
+                // Commands
+                .replace(/\b(echo|cd|ls|pwd|mkdir|rm|cp|mv|cat|grep|sed|awk|curl|wget|git|npm|pip|python|node)\b/g, '<span class="syntax-keyword">$1</span>')
+                // Variables
+                .replace(/(\$\{?[a-zA-Z_][a-zA-Z0-9_]*\}?)/g, '<span class="syntax-builtin">$1</span>')
+                // Flags
+                .replace(/(\s-[a-zA-Z]+)/g, '<span class="syntax-number">$1</span>');
         }
         
         return highlighted;

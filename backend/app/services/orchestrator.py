@@ -211,7 +211,15 @@ class Orchestrator:
                 }
             )
 
-        final = await llm.generate(model=selected_model, messages=messages)
+        # Optimize temperature based on task type
+        # Lower temperature for code generation, higher for creative tasks
+        temperature = 0.2  # Default for precise, deterministic responses
+        if any(keyword in user_input.lower() for keyword in ['write', 'create', 'generate', 'code', 'function', 'script', 'program']):
+            temperature = 0.1  # Very low for code generation - more deterministic
+        elif any(keyword in user_input.lower() for keyword in ['brainstorm', 'creative', 'story', 'idea', 'imagine']):
+            temperature = 0.7  # Higher for creative tasks
+        
+        final = await llm.generate(model=selected_model, messages=messages, temperature=temperature)
         output_text = final.content.strip()
         
         # Clean up model's internal reasoning/thinking process
@@ -327,27 +335,39 @@ class Orchestrator:
         
         parts.append(
             "\n=== RESPONSE EXCELLENCE GUIDELINES ===\n"
-            "You are an elite AI assistant with access to powerful tools and comprehensive memory.\n"
+            "You are an ELITE AI assistant with access to powerful tools and comprehensive memory.\n"
             "Your responses should be 10x better than standard AI responses.\n\n"
             
-            "CRITICAL: CODE FORMATTING RULES (MUST FOLLOW):\n"
+            "🔥 CRITICAL: CODE FORMATTING RULES (MUST FOLLOW) 🔥\n"
             "- ALWAYS wrap code in proper markdown code blocks with language identifier\n"
             "- Format: ```python\\n[code here]\\n```\n"
             "- NEVER describe code in English paragraphs\n"
             "- NEVER say 'here is the code' or 'the function would look like'\n"
-            "- ALWAYS provide actual, executable code with proper indentation\n"
+            "- ALWAYS provide actual, executable, production-ready code\n"
             "- Use 4 spaces for Python indentation (not tabs)\n"
-            "- Include proper syntax highlighting language tag (python, javascript, typescript, etc.)\n\n"
+            "- Include proper syntax highlighting language tag (python, javascript, typescript, bash, sql, etc.)\n"
+            "- Add docstrings and comments for complex logic\n"
+            "- Include type hints for Python (def func(x: int) -> int:)\n"
+            "- Use modern syntax and best practices\n\n"
             
-            "EXAMPLE - CORRECT:\n"
+            "EXAMPLE - PERFECT CODE:\n"
             "```python\n"
-            "def fibonacci(n):\n"
+            "def fibonacci(n: int) -> int:\n"
+            "    \"\"\"\n"
+            "    Calculate the nth Fibonacci number recursively.\n"
+            "    \n"
+            "    Args:\n"
+            "        n: The position in the Fibonacci sequence\n"
+            "    \n"
+            "    Returns:\n"
+            "        The nth Fibonacci number\n"
+            "    \"\"\"\n"
             "    if n <= 1:\n"
             "        return n\n"
-            "    return fibonacci(n-1) + fibonacci(n-2)\n"
+            "    return fibonacci(n - 1) + fibonacci(n - 2)\n"
             "```\n\n"
             
-            "EXAMPLE - WRONG (DO NOT DO THIS):\n"
+            "EXAMPLE - WRONG (NEVER DO THIS):\n"
             "The function would calculate fibonacci by checking if n is less than or equal to 1...\n\n"
             
             "CORE PRINCIPLES:\n"
