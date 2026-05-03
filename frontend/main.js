@@ -412,13 +412,13 @@
     async function streamInto(el, text, speed = 9) {
         el.innerHTML = "";
         el.classList.add("streaming");
-        const p = document.createElement("p");
-        el.appendChild(p);
-        for (let i = 0; i < text.length; i++) {
-            p.textContent = text.slice(0, i + 1);
-            // faster on long texts
-            if (i % 3 === 0) await sleep(speed);
-        }
+        
+        // For instant display with proper formatting
+        const formatted = formatMarkdownish(text);
+        el.innerHTML = formatted;
+        
+        // Small delay to show it's "streaming"
+        await sleep(100);
         el.classList.remove("streaming");
     }
 
@@ -653,23 +653,34 @@
             const baseline = data.baseline;
             const tuned = data.tuned;
 
-            // Raw pane
+            // SWAPPED: Left pane shows ENHANCED (tuned), Right pane shows RAW (baseline)
+            
+            // Left pane - ENHANCED (was raw) - WITH syntax highlighting
             const rawBodyEl = $("#rawBody");
             rawBodyEl.innerHTML = "";
-            await streamInto(rawBodyEl, baseline.output || "(no response)");
-            $("#rawLatency").textContent = (baseline.metrics?.latency_ms ?? "—") + " ms";
-            $("#rawTps").textContent = baseline.metrics?.usage?.total_tokens ?? "—";
-            $("#rawTokens").textContent = baseline.metrics?.usage?.total_tokens ?? "—";
+            await streamInto(rawBodyEl, tuned.output || "(no response)");
+            $("#rawLatency").textContent = (tuned.metrics?.latency_ms ?? "—") + " ms";
+            $("#rawTps").textContent = tuned.metrics?.usage?.total_tokens ?? "—";
+            $("#rawTokens").textContent = tuned.metrics?.usage?.total_tokens ?? "—";
 
-            // Enhanced pane
+            // Right pane - RAW (was enhanced) - NO syntax highlighting (plain text)
             const enhBodyEl = $("#enhBody");
             enhBodyEl.innerHTML = "";
-            await streamInto(enhBodyEl, tuned.output || "(no response)");
-            $("#enhCost").textContent = tuned.metrics?.estimated_cost_usd != null
-                ? "$" + tuned.metrics.estimated_cost_usd.toFixed(5)
+            // Display as plain text without markdown formatting
+            const plainText = document.createElement("pre");
+            plainText.style.whiteSpace = "pre-wrap";
+            plainText.style.fontFamily = "var(--font-mono)";
+            plainText.style.fontSize = "13px";
+            plainText.style.lineHeight = "1.6";
+            plainText.style.color = "#999";
+            plainText.textContent = baseline.output || "(no response)";
+            enhBodyEl.appendChild(plainText);
+            
+            $("#enhCost").textContent = baseline.metrics?.estimated_cost_usd != null
+                ? "$" + baseline.metrics.estimated_cost_usd.toFixed(5)
                 : "$ —";
-            $("#enhTools").textContent = (tuned.metrics?.tool_count ?? 0) + " used";
-            $("#enhIntent").textContent = tuned.skill || intent;
+            $("#enhTools").textContent = (tuned.metrics?.tool_count ?? 0) + " used";  // Show tuned tools count
+            $("#enhIntent").textContent = tuned.skill || intent;  // Show tuned skill
 
             // Sidebar stats
             $("#dashModel").textContent = tuned.model || model;

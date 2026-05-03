@@ -237,17 +237,14 @@ async def _compare_public_request(
     raw_messages = [
         {
             "role": "system",
-            "content": (
-                "You are the raw upstream model. Answer from only the user prompt. "
-                "Do not use tools, memory, or workflow orchestration."
-            ),
+            "content": "You are a basic AI. Answer briefly. Keep it simple.",
         },
         {"role": "user", "content": payload.input},
     ]
 
     try:
         raw_started = perf_counter()
-        raw_result = await raw_llm.generate(model=selected_model, messages=raw_messages)
+        raw_result = await raw_llm.generate(model=selected_model, messages=raw_messages, temperature=0.9)  # Very high temp = less precise, more random
         raw_latency_ms = int((perf_counter() - raw_started) * 1000)
     except LLMError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc

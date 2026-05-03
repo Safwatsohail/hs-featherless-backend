@@ -172,26 +172,31 @@ class Orchestrator:
         tool_calls: list[ToolCall] = []
         tool_outputs: list[dict] = []
         permitted_tools = list(skill.tool_permissions or [])
+        
+        # AGGRESSIVE TOOL USAGE - Always try to use tools when available
         if permitted_tools:
-            planner_tools = await self.tools.get_tool_specs(permitted_tools)
-            plan = await planner_llm.plan_tool_calls(model=planner_model, messages=messages, tools=planner_tools)
-            for call in plan.get("tool_calls", []):
-                try:
-                    tc = ToolCall.model_validate(call)
-                except Exception:  # noqa: BLE001
-                    continue
-                if tc.name not in permitted_tools:
-                    continue
-                if not self._is_tool_call_allowed(skill_config=skill_config, tool_call=tc):
-                    continue
-                tool_calls.append(tc)
-        if not tool_calls:
+            # First try intelligent fallback (works better than LLM planning)
             tool_calls = self._fallback_tool_calls(
                 skill_name=skill.name,
                 user_input=user_input,
                 skill_arguments=skill_arguments,
                 permitted_tools=permitted_tools,
             )
+            
+            # If no tools selected, try LLM planning as backup
+            if not tool_calls:
+                planner_tools = await self.tools.get_tool_specs(permitted_tools)
+                plan = await planner_llm.plan_tool_calls(model=planner_model, messages=messages, tools=planner_tools)
+                for call in plan.get("tool_calls", []):
+                    try:
+                        tc = ToolCall.model_validate(call)
+                    except Exception:  # noqa: BLE001
+                        continue
+                    if tc.name not in permitted_tools:
+                        continue
+                    if not self._is_tool_call_allowed(skill_config=skill_config, tool_call=tc):
+                        continue
+                    tool_calls.append(tc)
 
         for tc in tool_calls:
             try:
@@ -203,18 +208,52 @@ class Orchestrator:
                 tool_outputs.append({"name": tc.name, "output": f"ToolError: {exc}", "metadata": {}})
 
         if tool_outputs:
-            # Inject tool results as a user-role message so all providers accept it
+            # Format tool results in a user-friendly way (like Claude shows tool usage)
+            tool_summary = []
+            for tool_out in tool_outputs:
+                tool_name = tool_out.get("name", "unknown")
+                tool_output = tool_out.get("output", "")
+                
+                # Create a clean summary
+                if tool_name == "web_search":
+                    tool_summary.append(f"🔍 Searched the web")
+                elif tool_name == "deep_search":
+                    tool_summary.append(f"🔬 Performed deep research")
+                elif tool_name == "code_exec":
+                    tool_summary.append(f"⚡ Executed code")
+                elif tool_name == "math_exec":
+                    tool_summary.append(f"🧮 Calculated result")
+                elif tool_name == "file_read":
+                    tool_summary.append(f"📄 Read file")
+                elif tool_name == "image_analyze":
+                    tool_summary.append(f"🖼️ Analyzed image")
+                elif tool_name == "pdf_analyze":
+                    tool_summary.append(f"📑 Analyzed PDF")
+                elif tool_name == "sql_exec":
+                    tool_summary.append(f"🗄️ Queried database")
+                elif tool_name == "api_call":
+                    tool_summary.append(f"🌐 Called API")
+                else:
+                    tool_summary.append(f"🔧 Used {tool_name}")
+            
+            # Inject tool results with a clean header
+            tool_header = "\n".join(tool_summary)
             messages.append(
                 {
                     "role": "user",
-                    "content": "Tool results (use these to answer):\n" + json.dumps(tool_outputs, ensure_ascii=False),
+                    "content": (
+                        f"Tool Results:\n{tool_header}\n\n"
+                        f"Raw Data:\n{json.dumps(tool_outputs, ensure_ascii=False)}\n\n"
+                        f"Use these results to provide a comprehensive answer. "
+                        f"Integrate the data naturally into your response."
+                    ),
                 }
             )
 
         # Optimize temperature based on task type
         # Lower temperature for code generation, higher for creative tasks
         temperature = 0.2  # Default for precise, deterministic responses
-        if any(keyword in user_input.lower() for keyword in ['write', 'create', 'generate', 'code', 'function', 'script', 'program']):
+        if any(keyword in user_input.lower() for keyword in ['write', 'create', 'generate', 'code', 'function', 'script', 'program', 'class', 'implement']):
             temperature = 0.1  # Very low for code generation - more deterministic
         elif any(keyword in user_input.lower() for keyword in ['brainstorm', 'creative', 'story', 'idea', 'imagine']):
             temperature = 0.7  # Higher for creative tasks
@@ -222,37 +261,95 @@ class Orchestrator:
         final = await llm.generate(model=selected_model, messages=messages, temperature=temperature)
         output_text = final.content.strip()
         
-        # Clean up model's internal reasoning/thinking process
-        # Some models include their reasoning in the response, we want just the final answer
-        if "Here's my response to the given prompt:" in output_text:
-            # Extract everything after this phrase
-            parts = output_text.split("Here's my response to the given prompt:", 1)
-            if len(parts) > 1:
-                output_text = parts[1].strip().strip('"').strip()
+        # AGGRESSIVE CLEANUP - Make responses user-friendly
         
-        # Remove common thinking patterns
-        thinking_patterns = [
+        # 1. Remove meta-commentary and thinking patterns
+        meta_patterns = [
+            "Here's my response to the given prompt:",
             "I'm just a text-based model and don't have the ability to",
             "I can only respond based on the user prompt given to me.",
-            "Here's my response to the given prompt:",
+            "As an AI language model,",
+            "As an AI assistant,",
+            "I apologize, but",
+            "I'm sorry, but",
         ]
-        for pattern in thinking_patterns:
+        for pattern in meta_patterns:
             if pattern in output_text:
-                # Try to extract just the actual answer
+                # Remove the entire line containing the pattern
                 lines = output_text.split('\n')
-                cleaned_lines = []
-                skip_mode = False
-                for line in lines:
-                    if any(p in line for p in thinking_patterns):
-                        skip_mode = True
-                        continue
-                    if skip_mode and line.strip() and not any(p in line for p in thinking_patterns):
-                        skip_mode = False
-                    if not skip_mode:
-                        cleaned_lines.append(line)
-                if cleaned_lines:
-                    output_text = '\n'.join(cleaned_lines).strip()
-                break
+                output_text = '\n'.join(line for line in lines if pattern not in line)
+        
+        # 2. Fix malformed code blocks - CRITICAL FIX
+        import re
+        
+        # Fix missing opening backticks: `python\ndef foo() -> ```python\ndef foo()
+        output_text = re.sub(r'`(\w+)\s*\n', r'```\1\n', output_text)
+        
+        # Fix code blocks that start without backticks but have proper indentation
+        # Look for patterns like: def function_name or class ClassName at start of line
+        if re.search(r'^(def|class|import|from|async def|@)\s+\w+', output_text, re.MULTILINE):
+            # Check if there's no opening ```
+            if not output_text.startswith('```') and '```' not in output_text[:50]:
+                # Detect language from content
+                if re.search(r'\b(def|class|import|from|async|await)\b', output_text):
+                    lang = 'python'
+                elif re.search(r'\b(function|const|let|var|class|=>)\b', output_text):
+                    lang = 'javascript'
+                elif re.search(r'\b(interface|type|enum|namespace)\b', output_text):
+                    lang = 'typescript'
+                else:
+                    lang = 'python'  # default
+                
+                # Wrap the code block
+                output_text = f'```{lang}\n{output_text}\n```'
+        
+        # Fix code blocks missing closing backticks
+        if output_text.count('```') % 2 != 0:
+            output_text += '\n```'
+        
+        # 3. Clean up excessive newlines
+        output_text = re.sub(r'\n{4,}', '\n\n\n', output_text)
+        
+        # 4. Remove trailing quotes if the entire response is wrapped in quotes
+        output_text = output_text.strip('"').strip("'").strip()
+        
+        # 5. Ensure code blocks have proper spacing
+        output_text = re.sub(r'```(\w+)\n', r'```\1\n', output_text)
+        output_text = re.sub(r'\n```\s*$', r'\n```', output_text)
+        
+        # 6. Remove HTML artifacts that might appear in responses
+        output_text = re.sub(r'class="[^"]*"', '', output_text)
+        output_text = re.sub(r'<[^>]+>', '', output_text)
+        
+        # 7. Add tool usage header (like Claude shows what tools it used)
+        if tool_outputs:
+            tool_header_parts = []
+            for tool_out in tool_outputs:
+                tool_name = tool_out.get("name", "unknown")
+                if tool_name == "web_search":
+                    tool_header_parts.append("🔍 Web Search")
+                elif tool_name == "deep_search":
+                    tool_header_parts.append("🔬 Deep Research")
+                elif tool_name == "code_exec":
+                    tool_header_parts.append("⚡ Code Execution")
+                elif tool_name == "math_exec":
+                    tool_header_parts.append("🧮 Math Calculation")
+                elif tool_name == "file_read":
+                    tool_header_parts.append("📄 File Read")
+                elif tool_name == "image_analyze":
+                    tool_header_parts.append("🖼️ Image Analysis")
+                elif tool_name == "pdf_analyze":
+                    tool_header_parts.append("📑 PDF Analysis")
+                elif tool_name == "sql_exec":
+                    tool_header_parts.append("🗄️ Database Query")
+                elif tool_name == "api_call":
+                    tool_header_parts.append("🌐 API Call")
+                else:
+                    tool_header_parts.append(f"🔧 {tool_name.replace('_', ' ').title()}")
+            
+            if tool_header_parts:
+                tool_header = " • ".join(tool_header_parts)
+                output_text = f"*Used: {tool_header}*\n\n{output_text}"
 
         await self._store_turn(
             user_id=user_id,
@@ -335,82 +432,73 @@ class Orchestrator:
         
         parts.append(
             "\n=== RESPONSE EXCELLENCE GUIDELINES ===\n"
-            "You are an ELITE AI assistant with access to powerful tools and comprehensive memory.\n"
-            "Your responses should be 10x better than standard AI responses.\n\n"
+            "You are an ELITE AI assistant with enhanced capabilities.\n\n"
             
-            "🔥 CRITICAL: CODE FORMATTING RULES (MUST FOLLOW) 🔥\n"
-            "- ALWAYS wrap code in proper markdown code blocks with language identifier\n"
-            "- Format: ```python\\n[code here]\\n```\n"
-            "- NEVER describe code in English paragraphs\n"
-            "- NEVER say 'here is the code' or 'the function would look like'\n"
-            "- ALWAYS provide actual, executable, production-ready code\n"
-            "- Use 4 spaces for Python indentation (not tabs)\n"
-            "- Include proper syntax highlighting language tag (python, javascript, typescript, bash, sql, etc.)\n"
-            "- Add docstrings and comments for complex logic\n"
-            "- Include type hints for Python (def func(x: int) -> int:)\n"
-            "- Use modern syntax and best practices\n\n"
+            "🎯 RESPONSE MATCHING:\n"
+            "Match your response style to the query complexity:\n\n"
             
-            "EXAMPLE - PERFECT CODE:\n"
+            "SIMPLE QUERIES (greetings, thanks, yes/no):\n"
+            "- 1-2 sentences maximum\n"
+            "- Warm and friendly\n"
+            "- NO code examples\n"
+            "- NO lengthy explanations\n"
+            "- Example: 'Hi! How can I help you today?'\n\n"
+            
+            "COMPLEX QUERIES (code, explanations, analysis):\n"
+            "- Comprehensive and detailed\n"
+            "- Use headers and structure\n"
+            "- Include code examples when relevant\n"
+            "- Provide specific details\n\n"
+            
+            "🔥 CODE FORMATTING (Only for code requests):\n"
+            "When user asks for code:\n"
+            "1. Start with ```language\n"
+            "2. Production-ready code with type hints\n"
+            "3. Comprehensive docstring\n"
+            "4. End with ```\n\n"
+            
+            "PERFECT CODE EXAMPLE:\n"
             "```python\n"
-            "def fibonacci(n: int) -> int:\n"
+            "def add(a: int, b: int) -> int:\n"
             "    \"\"\"\n"
-            "    Calculate the nth Fibonacci number recursively.\n"
+            "    Add two numbers.\n"
             "    \n"
             "    Args:\n"
-            "        n: The position in the Fibonacci sequence\n"
+            "        a: First number\n"
+            "        b: Second number\n"
             "    \n"
             "    Returns:\n"
-            "        The nth Fibonacci number\n"
+            "        Sum of a and b\n"
             "    \"\"\"\n"
-            "    if n <= 1:\n"
-            "        return n\n"
-            "    return fibonacci(n - 1) + fibonacci(n - 2)\n"
+            "    return a + b\n"
             "```\n\n"
             
-            "EXAMPLE - WRONG (NEVER DO THIS):\n"
-            "The function would calculate fibonacci by checking if n is less than or equal to 1...\n\n"
+            "💬 CONVERSATION EXAMPLES:\n\n"
+            "Query: 'hi'\n"
+            "Response: 'Hello! How can I help you today?'\n\n"
             
-            "CORE PRINCIPLES:\n"
-            "1. PERSONALIZATION: Use memory context to tailor responses to the user's specific situation\n"
-            "2. DEPTH: Provide comprehensive, detailed answers with specific examples and data\n"
-            "3. STRUCTURE: Use markdown formatting (headers, lists, code blocks, tables) for clarity\n"
-            "4. ACTIONABILITY: Give concrete, implementable solutions with step-by-step guidance\n"
-            "5. INTELLIGENCE: Synthesize information from multiple sources and tools\n\n"
+            "Query: 'thanks'\n"
+            "Response: 'You're welcome! Let me know if you need anything else.'\n\n"
             
-            "RESPONSE FORMAT:\n"
-            "- Start with a direct answer to the question\n"
-            "- Use ## headers to organize sections\n"
-            "- Include code examples in ```language blocks with proper syntax\n"
-            "- Use bullet points for lists and key points\n"
-            "- Add tables for comparisons when relevant\n"
-            "- Include specific numbers, metrics, and data points\n"
-            "- Cite sources when using tool results\n\n"
+            "Query: 'what can you do?'\n"
+            "Response: 'I can help with coding, explanations, analysis, and more. I have access to 1,080+ skills, 55+ tools, and remember our conversations. What would you like help with?'\n\n"
             
-            "QUALITY STANDARDS:\n"
-            "- Production-ready code (not pseudocode or descriptions)\n"
-            "- Best practices and modern patterns\n"
-            "- Security and performance considerations\n"
-            "- Error handling and edge cases\n"
-            "- Clear explanations of complex concepts\n"
-            "- Real-world examples and use cases\n\n"
+            "Query: 'Write a Python function to add two numbers'\n"
+            "Response: [Full code with type hints and docstring]\n\n"
             
-            "TOOL USAGE:\n"
-            "- If tool results are provided, integrate them seamlessly into your response\n"
-            "- Synthesize multiple tool outputs into a cohesive answer\n"
-            "- Cite specific data points from tool results\n"
-            "- Explain how the tool results answer the question\n\n"
+            "� CRITICAL RULES:\n"
+            "- NO code for greetings or simple queries\n"
+            "- NO meta-commentary ('As an AI...', 'I'm just a model...')\n"
+            "- NO HTML tags in responses\n"
+            "- NO overly verbose responses for simple questions\n"
+            "- Match response length to query complexity\n\n"
             
-            "WHAT TO AVOID:\n"
-            "- Meta-commentary about being an AI or your limitations\n"
-            "- Phrases like 'Here's my response' or 'I'm just a text-based model'\n"
-            "- Vague or generic answers without specifics\n"
-            "- Incomplete code examples or pseudocode\n"
-            "- Describing code in English instead of showing actual code\n"
-            "- Apologizing for not having information (just state what's needed)\n\n"
-            
-            "REMEMBER: You have access to tools, memory, and skills. Use them to provide\n"
-            "responses that are comprehensive, personalized, and 10x more valuable than basic answers.\n"
-            "When asked for code, ALWAYS provide actual code in proper markdown code blocks.\n"
+            "✅ ALWAYS:\n"
+            "- Be warm and friendly\n"
+            "- Use memory when available\n"
+            "- Provide value in every response\n"
+            "- Keep simple queries simple\n"
+            "- Make complex queries comprehensive\n"
         )
         return "".join(parts).strip()
 
@@ -446,15 +534,28 @@ class Orchestrator:
         permitted_tools: list[str],
     ) -> list[ToolCall]:
         """
-        Intelligent fallback tool selection based on user intent.
-        This ensures we ALWAYS use tools when they could be helpful.
+        SMART tool selection - only use tools when they're actually needed.
+        Don't use tools for simple greetings or general conversation.
         """
         normalized = f"{user_input}\n{skill_arguments or ''}".lower()
         tool_set = set(permitted_tools)
         calls: list[ToolCall] = []
 
+        # Skip tools for simple greetings and general conversation
+        simple_patterns = [
+            "hi", "hello", "hey", "greetings", "good morning", "good afternoon",
+            "how are you", "what's up", "sup", "yo", "thanks", "thank you",
+            "bye", "goodbye", "see you", "ok", "okay", "yes", "no"
+        ]
+        if any(normalized.strip() == pattern for pattern in simple_patterns):
+            return []  # No tools for simple greetings
+        
+        # Skip tools if query is too short and not code-related
+        if len(user_input.strip()) < 15 and not any(kw in normalized for kw in ["code", "function", "class", "script"]):
+            return []
+
         # PDF Analysis - highest priority for PDF files
-        if "pdf_analyze" in tool_set:
+        if "pdf_analyze" in tool_set and ".pdf" in normalized:
             pdf_path = self._extract_local_path(normalized_source=user_input + "\n" + (skill_arguments or ""), suffix=".pdf")
             if pdf_path:
                 calls.append(ToolCall(name="pdf_analyze", input={"path": pdf_path}))
@@ -464,93 +565,74 @@ class Orchestrator:
         if "deep_search" in tool_set and (
             skill_name == "deep_research"
             or any(term in normalized for term in [
-                "deep research", "research", "latest", "compare", "investigate",
-                "analyze", "study", "examine", "comprehensive", "detailed analysis",
-                "what are the", "tell me about", "explain", "how does", "why is"
+                "deep research", "research paper", "comprehensive analysis",
+                "detailed study", "investigate thoroughly"
             ])
         ):
             calls.append(ToolCall(name="deep_search", input={"query": user_input}))
             return calls
 
-        # Web Search - for any information lookup
+        # Web Search - ONLY for information lookup queries
         if "web_search" in tool_set and any(
             term in normalized for term in [
-                "search", "look up", "find", "latest", "news", "current",
-                "what is", "who is", "when did", "where is", "how to",
-                "best", "top", "list", "compare", "vs", "versus",
-                "2024", "2025", "recent", "new", "update"
+                "latest", "current", "news", "recent update",
+                "what is the latest", "what are the new", "release date",
+                "price of", "cost of", "available in", "when was",
+                "who is", "where is", "search for", "look up",
+                "find information about", "tell me about the latest"
             ]
         ):
             calls.append(ToolCall(name="web_search", input={"query": user_input}))
-            # Don't return yet - might want to add more tools
+            return calls
 
-        # Code Execution - for programming questions
+        # Code Execution - ONLY when user explicitly wants to run code
         if "code_exec" in tool_set and any(
             term in normalized for term in [
-                "run", "execute", "calculate", "compute", "evaluate",
-                "python", "javascript", "code", "script", "function"
+                "run this code", "execute this", "test this code",
+                "what does this code do", "debug this", "run the following"
             ]
         ):
-            # Try to extract code from the input
             if "```" in user_input:
                 calls.append(ToolCall(name="code_exec", input={"code": user_input}))
+                return calls
 
-        # Math Execution - for calculations
+        # Math Execution - ONLY for explicit calculations
         if "math_exec" in tool_set and any(
             term in normalized for term in [
-                "calculate", "compute", "sum", "average", "mean", "median",
-                "total", "count", "percentage", "ratio", "+", "-", "*", "/",
-                "equation", "formula", "solve"
+                "calculate", "compute", "what is", "solve",
+                "math problem", "equation"
             ]
-        ):
+        ) and any(char in user_input for char in ["+", "-", "*", "/", "=", "^"]):
             calls.append(ToolCall(name="math_exec", input={"expression": user_input}))
+            return calls
 
-        # SQL Execution - for data queries
-        if "sql_exec" in tool_set and any(
-            term in normalized for term in [
-                "query", "select", "database", "table", "data",
-                "count", "sum", "average", "group by", "where",
-                "analytics", "metrics", "stats", "statistics"
-            ]
-        ):
-            # This would need actual SQL query extraction
-            pass
-
-        # File Operations
+        # File Operations - ONLY when file path is mentioned
         if "file_read" in tool_set and any(
-            term in normalized for term in ["read", "open", "show", "display", "content of"]
+            term in normalized for term in ["read file", "open file", "show file", "content of file"]
         ):
-            # Try to extract file path
             import re
             file_match = re.search(r'["\']([^"\']+\.[a-z]{2,4})["\']', user_input)
             if file_match:
                 calls.append(ToolCall(name="file_read", input={"path": file_match.group(1)}))
+                return calls
 
-        # Image Analysis
+        # Image Analysis - ONLY when image is mentioned
         if "image_analyze" in tool_set and any(
-            term in normalized for term in ["image", "picture", "photo", "screenshot", ".jpg", ".png", ".jpeg"]
+            term in normalized for term in ["analyze image", "what's in this image", "describe image"]
         ):
-            # Try to extract image path
             import re
             img_match = re.search(r'["\']([^"\']+\.(?:jpg|jpeg|png|gif|webp))["\']', user_input, re.IGNORECASE)
             if img_match:
                 calls.append(ToolCall(name="image_analyze", input={"path": img_match.group(1)}))
+                return calls
 
-        # API Calls - for external data
-        if "api_call" in tool_set and any(
-            term in normalized for term in ["api", "endpoint", "fetch", "get data", "retrieve"]
-        ):
-            # Try to extract URL
-            import re
-            url_match = re.search(r'https?://[^\s]+', user_input)
-            if url_match:
-                calls.append(ToolCall(name="api_call", input={"url": url_match.group(0)}))
-
-        return calls
-
+        # Code Analysis - ONLY for explicit codebase questions
         if "code_analyze" in tool_set and (
-            skill_name in {"codebase_analyst", "code_assistant", "debug", "review"}
-            or any(term in normalized for term in ["codebase", "repo", "repository", "analyze code", "inspect code"])
+            skill_name in {"codebase_analyst", "code_review"}
+            or any(term in normalized for term in [
+                "analyze codebase", "review code", "inspect repository",
+                "code structure", "project structure", "codebase overview"
+            ])
         ):
             code_path = self._extract_local_path(
                 normalized_source=user_input + "\n" + (skill_arguments or ""),
@@ -559,7 +641,8 @@ class Orchestrator:
             calls.append(ToolCall(name="code_analyze", input={"path": code_path, "query": user_input}))
             return calls
 
-        return calls
+        # Default: NO TOOLS for general conversation
+        return []
 
     @staticmethod
     def _extract_local_path(*, normalized_source: str, suffix: str | None) -> str | None:
@@ -684,6 +767,56 @@ class Orchestrator:
         if skill_name:
             return await self.skills.select_skill(user_input=user_input, skill_name=skill_name)
 
+        # SMART SKILL ROUTING - Like Claude's automatic skill selection
+        normalized = user_input.lower()
+        
+        # Code-related queries → code_assistant
+        if any(kw in normalized for kw in [
+            "write", "create", "generate", "code", "function", "class", "script",
+            "program", "implement", "build", "develop", "python", "javascript",
+            "typescript", "java", "c++", "rust", "go", "ruby", "php", "calculator",
+            "algorithm", "data structure", "api", "backend", "frontend"
+        ]):
+            code_skill = await self.skills.get_by_name("code_assistant")
+            if code_skill:
+                return code_skill
+        
+        # Research queries → deep_research
+        if any(kw in normalized for kw in [
+            "research", "analyze", "compare", "investigate", "study",
+            "latest", "current", "what are the", "tell me about", "explain"
+        ]):
+            research_skill = await self.skills.get_by_name("deep_research")
+            if research_skill:
+                return research_skill
+        
+        # Data/analytics queries → data_analyst
+        if any(kw in normalized for kw in [
+            "analyze data", "statistics", "metrics", "dashboard", "report",
+            "visualization", "chart", "graph", "sql", "database"
+        ]):
+            data_skill = await self.skills.get_by_name("data_analyst")
+            if data_skill:
+                return data_skill
+        
+        # Debugging queries → debug
+        if any(kw in normalized for kw in [
+            "debug", "fix", "error", "bug", "issue", "problem", "not working",
+            "broken", "crash", "exception", "traceback"
+        ]):
+            debug_skill = await self.skills.get_by_name("debug")
+            if debug_skill:
+                return debug_skill
+        
+        # Code review queries → review
+        if any(kw in normalized for kw in [
+            "review", "check", "improve", "optimize", "refactor", "best practices"
+        ]):
+            review_skill = await self.skills.get_by_name("review")
+            if review_skill:
+                return review_skill
+
+        # Fallback to LLM-based selection
         skills = await self.skills.list_skills()
         catalog = self.skills.get_skill_catalog(skills)
         if catalog:
