@@ -1,512 +1,480 @@
-# 🔧 Developer Guide - H&S Layer (Local Setup)
+# 👨‍💻 Developer Guide
 
-## 🎯 Overview
+Complete guide to integrating H&S Layer into your applications.
 
-H&S Layer is a **local-only** AI orchestration platform that enhances Featherless.ai API keys with:
-- **Unified Memory** - Shared across all API keys for the same user
-- **1,080+ Skills** - Auto-routing to specialized domain experts
-- **50+ Tools** - Web search, code analysis, database queries
-- **Intelligent Caching** - 40-60% cost reduction
+---
 
-## 🚀 Quick Start (Local Only)
+## 📋 Table of Contents
 
-### 1. First Time Setup
+1. [Authentication](#authentication)
+2. [API Endpoints](#api-endpoints)
+3. [Code Examples](#code-examples)
+4. [Memory System](#memory-system)
+5. [Skills & Tools](#skills--tools)
+6. [Best Practices](#best-practices)
 
-```bash
-# Install backend dependencies
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cd ..
+---
 
-# Backend is configured for LOCAL ONLY (127.0.0.1)
-# Check backend/.env - HOST should be 127.0.0.1
-```
+## 🔐 Authentication
 
-### 2. Start Everything
+### Step 1: Store Provider API Key
 
 ```bash
-./start.sh
-```
-
-This starts:
-- **Backend**: http://localhost:8000 (LOCAL ONLY - 127.0.0.1)
-- **Frontend**: http://localhost:3000
-- **API Docs**: http://localhost:8000/docs
-
-### 3. Generate Your Enhanced API Key
-
-1. **Get a Featherless API Key**
-   - Go to https://featherless.ai
-   - Sign up and get your API key (starts with `fl_`)
-
-2. **Open the Frontend**
-   - Navigate to http://localhost:3000
-   - Click "Get Enhanced Key" or "Sign in"
-   - Go through the onboarding flow
-
-3. **Bridge Your Key**
-   - Paste your Featherless key (fl_...)
-   - Click "Generate Enhanced Key"
-   - You'll get an Aurora key (aurora_live_...)
-
-4. **Use Your Enhanced Key**
-   - Copy the Aurora key
-   - Use it in your API calls instead of the raw Featherless key
-
-## 🔑 API Key Flow
-
-### How Keys Work
-
-```
-Featherless Key (fl_xxx)
-    ↓ [Store in backend]
-    ↓ [Generate Aurora Key]
-Aurora Key (aurora_live_xxx)
-    ↓ [Use in API calls]
-    ↓ [Backend decrypts & uses Featherless key]
-    ↓ [Adds memory, skills, tools]
-Enhanced Response
-```
-
-### Memory Sharing Across Keys
-
-**All Aurora keys for the same user share memory!**
-
-```javascript
-// User creates multiple Aurora keys
-const key1 = "aurora_live_ABC123...";
-const key2 = "aurora_live_XYZ789...";
-
-// Both keys share the same memory
-// If you tell key1: "I prefer JSON responses"
-// Then key2 will also remember this preference!
-```
-
-This is controlled by `user_id` and `memory_scope`:
-
-```javascript
-{
-  "user_id": "00000000-0000-0000-0000-000000000001",
-  "memory_scope": "user",  // Shared across all keys for this user
-  "input": "Remember I prefer JSON"
-}
-```
-
-## 📡 API Usage Examples
-
-### 1. Basic Chat Request
-
-```bash
-curl -X POST http://localhost:8000/v1/run \
-  -H "Authorization: Bearer aurora_live_YOUR_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_id": "00000000-0000-0000-0000-000000000001",
-    "input": "Debug my Python API performance",
-    "memory_scope": "user"
-  }'
-```
-
-### 2. Compare Raw vs Enhanced
-
-```bash
-curl -X POST http://localhost:8000/compare \
-  -H "Authorization: Bearer aurora_live_YOUR_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_id": "00000000-0000-0000-0000-000000000001",
-    "input": "What are the latest React 19 features?",
-    "provider": "featherless",
-    "model": "gpt-4.1-mini"
-  }'
-```
-
-### 3. Store Memory
-
-```bash
-curl -X POST http://localhost:8000/v1/memory \
-  -H "Authorization: Bearer aurora_live_YOUR_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_id": "00000000-0000-0000-0000-000000000001",
-    "text": "User prefers JSON responses",
-    "kind": "preference",
-    "memory_scope": "user"
-  }'
-```
-
-### 4. Retrieve Memory Context
-
-```bash
-curl -X POST http://localhost:8000/v1/memory/context \
-  -H "Authorization: Bearer aurora_live_YOUR_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_id": "00000000-0000-0000-0000-000000000001",
-    "query": "user preferences",
-    "memory_scope": "user"
-  }'
-```
-
-### 5. List Available Skills
-
-```bash
-curl http://localhost:8000/v1/skills
-```
-
-### 6. Invoke Specific Skill
-
-```bash
-curl -X POST http://localhost:8000/v1/skills/research \
-  -H "Authorization: Bearer aurora_live_YOUR_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_id": "00000000-0000-0000-0000-000000000001",
-    "input": "Latest AI developments in 2025"
-  }'
-```
-
-## 🧠 Memory Scopes
-
-Control how memory is shared:
-
-| Scope | Description | Use Case |
-|-------|-------------|----------|
-| `user` | Shared across all API keys for same user | Default - remembers preferences |
-| `workspace` | Shared within a project/workspace | Team collaboration |
-| `conversation` | Isolated per conversation | Private chats |
-| `global` | Shared across all users | Public knowledge base |
-
-Example:
-
-```javascript
-// Personal preference (shared across all your keys)
-{
-  "memory_scope": "user",
-  "input": "I prefer TypeScript over JavaScript"
-}
-
-// Project-specific (shared in this workspace only)
-{
-  "memory_scope": "workspace",
-  "context_key": "project-alpha",
-  "input": "Our API uses REST not GraphQL"
-}
-
-// Private conversation (not shared)
-{
-  "memory_scope": "conversation",
-  "conversation_id": "conv-123",
-  "input": "Confidential: Q4 revenue is $2M"
-}
-```
-
-## 🛠️ Frontend Integration
-
-### JavaScript Example
-
-```javascript
-const API_BASE = "http://localhost:8000";
-const AURORA_KEY = "aurora_live_YOUR_KEY";
-const USER_ID = "00000000-0000-0000-0000-000000000001";
-
-async function chat(message) {
-  const response = await fetch(`${API_BASE}/v1/run`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${AURORA_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      user_id: USER_ID,
-      input: message,
-      memory_scope: "user"
-    })
-  });
-  
-  return await response.json();
-}
-
-// Usage
-const result = await chat("What's the weather in Tokyo?");
-console.log(result.output);
-console.log("Skill used:", result.skill);
-console.log("Tools used:", result.tool_calls);
-```
-
-### React Example
-
-```jsx
-import { useState } from 'react';
-
-function ChatComponent() {
-  const [message, setMessage] = useState('');
-  const [response, setResponse] = useState(null);
-  
-  const sendMessage = async () => {
-    const res = await fetch('http://localhost:8000/v1/run', {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Bearer aurora_live_YOUR_KEY',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        user_id: '00000000-0000-0000-0000-000000000001',
-        input: message,
-        memory_scope: 'user'
-      })
-    });
-    
-    const data = await res.json();
-    setResponse(data);
-  };
-  
-  return (
-    <div>
-      <input 
-        value={message} 
-        onChange={(e) => setMessage(e.target.value)} 
-      />
-      <button onClick={sendMessage}>Send</button>
-      {response && (
-        <div>
-          <p>{response.output}</p>
-          <small>Skill: {response.skill}</small>
-        </div>
-      )}
-    </div>
-  );
-}
-```
-
-## 🔒 Security (Local Only)
-
-### Current Setup
-
-- **Backend**: Bound to `127.0.0.1` (localhost only)
-- **Frontend**: Served on `localhost:3000`
-- **Database**: Local SQLite file
-- **API Keys**: Encrypted with Fernet (MASTER_KEY)
-
-### Why Local Only?
-
-1. **No external access** - Only your machine can access the API
-2. **No HTTPS needed** - Local traffic is secure
-3. **Fast development** - No network latency
-4. **Privacy** - Your data never leaves your machine
-
-### If You Need Remote Access
-
-**DON'T** change `HOST=0.0.0.0` without proper security:
-
-1. Add authentication middleware
-2. Use HTTPS with valid certificates
-3. Add rate limiting
-4. Use environment-specific API keys
-5. Deploy behind a reverse proxy (nginx)
-
-## 📊 Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Frontend (localhost:3000)             │
-│  - Landing page                                          │
-│  - API key bridge                                        │
-│  - Dashboard (compare, memory, skills, tools)            │
-└────────────────────┬────────────────────────────────────┘
-                     │ HTTP (localhost only)
-┌────────────────────▼────────────────────────────────────┐
-│              Backend API (localhost:8000)                │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │  API Gateway (FastAPI)                           │   │
-│  │  - CORS enabled for localhost:3000               │   │
-│  │  - Aurora key authentication                     │   │
-│  └──────────────────┬───────────────────────────────┘   │
-│                     │                                    │
-│  ┌──────────────────▼───────────────────────────────┐   │
-│  │  Orchestrator                                     │   │
-│  │  - Skill selection (1,080+ skills)               │   │
-│  │  - Tool planning (50+ tools)                     │   │
-│  │  - Memory retrieval                              │   │
-│  │  - LLM routing                                   │   │
-│  └──────────────────┬───────────────────────────────┘   │
-│                     │                                    │
-│  ┌─────────┬────────┴────────┬──────────┬──────────┐   │
-│  │         │                 │          │          │   │
-│  ▼         ▼                 ▼          ▼          ▼   │
-│ Skills   Tools            Memory      Cache      LLM   │
-│ Engine   Engine           Engine      Layer    Client  │
-│  │         │                 │          │          │   │
-│  │         │                 │          │          │   │
-│  ▼         ▼                 ▼          ▼          ▼   │
-│ SQLite  Sandbox         Vector Store  Redis   Featherless│
-│  DB     (Python/Bash)   (In-Memory)  (Optional)  API   │
-└─────────────────────────────────────────────────────────┘
-```
-
-## 🧪 Testing
-
-### Health Check
-
-```bash
-curl http://localhost:8000/healthz
-# Should return: {"ok": true}
-```
-
-### Create Test User & Key
-
-```bash
-# 1. Store Featherless API key
 curl -X POST http://localhost:8000/apikey \
   -H "Content-Type: application/json" \
   -d '{
-    "user_id": "00000000-0000-0000-0000-000000000001",
-    "provider": "featherless",
-    "api_key": "fl_YOUR_FEATHERLESS_KEY"
+    "user_id": "your-user-id",
+    "provider": "openrouter",
+    "api_key": "sk-or-v1-your-key"
   }'
+```
 
-# 2. Generate Aurora key
+**Supported Providers:**
+- `openrouter` - Access to 200+ models
+- `featherless` - Fast, affordable inference
+
+### Step 2: Generate Aurora Enhanced Key
+
+```bash
 curl -X POST http://localhost:8000/auth/issue-key \
   -H "Content-Type: application/json" \
   -d '{
-    "user_id": "00000000-0000-0000-0000-000000000001",
-    "name": "Test Key",
+    "user_id": "your-user-id",
+    "name": "My App Key",
     "scopes": ["chat", "memory", "tools", "skills"]
   }'
-
-# Copy the returned aurora_live_... key
 ```
 
-### Test Memory Sharing
-
-```bash
-# Create first Aurora key
-KEY1=$(curl -s -X POST http://localhost:8000/auth/issue-key \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_id": "00000000-0000-0000-0000-000000000001",
-    "name": "Key 1",
-    "scopes": ["chat"]
-  }' | jq -r '.api_key')
-
-# Create second Aurora key (same user)
-KEY2=$(curl -s -X POST http://localhost:8000/auth/issue-key \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_id": "00000000-0000-0000-0000-000000000001",
-    "name": "Key 2",
-    "scopes": ["chat"]
-  }' | jq -r '.api_key')
-
-# Use KEY1 to store a preference
-curl -X POST http://localhost:8000/v1/run \
-  -H "Authorization: Bearer $KEY1" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_id": "00000000-0000-0000-0000-000000000001",
-    "input": "I prefer JSON responses",
-    "memory_scope": "user"
-  }'
-
-# Use KEY2 to ask a question (should remember preference!)
-curl -X POST http://localhost:8000/v1/run \
-  -H "Authorization: Bearer $KEY2" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_id": "00000000-0000-0000-0000-000000000001",
-    "input": "Show me user statistics",
-    "memory_scope": "user"
-  }'
-# Should return JSON format because KEY1 set that preference!
+**Response:**
+```json
+{
+  "id": "uuid",
+  "user_id": "your-user-id",
+  "name": "My App Key",
+  "key_prefix": "aurora_live_xxxxx",
+  "scopes": ["chat", "memory", "tools", "skills"],
+  "is_active": true,
+  "api_key": "aurora_live_xxxxxxxxxxxxxxxxxxxxxxxxxx"
+}
 ```
 
-## 🐛 Troubleshooting
+---
 
-### Backend Won't Start
+## 🌐 API Endpoints
 
-```bash
-# Check if port 8000 is in use
-lsof -ti:8000 | xargs kill -9
+### POST /v1/run - Enhanced Chat
 
-# Check logs
-tail -f backend.log
-
-# Verify .env file
-cat backend/.env | grep HOST
-# Should show: HOST=127.0.0.1
+**Request:**
+```json
+{
+  "user_id": "your-user-id",
+  "input": "Write a Python function to calculate fibonacci",
+  "provider": "openrouter",
+  "model": "openrouter/auto",
+  "memory_scope": "user"
+}
 ```
 
-### Frontend Can't Connect
-
-```bash
-# Check backend is running
-curl http://localhost:8000/healthz
-
-# Check CORS is enabled
-curl -H "Origin: http://localhost:3000" \
-     -H "Access-Control-Request-Method: POST" \
-     -X OPTIONS http://localhost:8000/v1/run
-
-# Check frontend API_BASE
-# Open frontend/main.js and verify:
-# const API_BASE = "http://localhost:8000";
+**Response:**
+```json
+{
+  "conversation_id": "uuid",
+  "skill": "code_assistant",
+  "output": "```python\ndef fibonacci(n):\n    if n <= 1:\n        return n\n    return fibonacci(n-1) + fibonacci(n-2)\n```",
+  "tool_calls": [],
+  "tool_results": [],
+  "provider": "openrouter",
+  "model": "openrouter/auto",
+  "metrics": {
+    "memory_hits": 2,
+    "tool_count": 0,
+    "usage": {
+      "prompt_tokens": 150,
+      "completion_tokens": 80,
+      "total_tokens": 230
+    }
+  }
+}
 ```
 
-### Skills Not Loading
+### POST /v1/compare - A/B Compare
 
-```bash
-# Check skills endpoint
-curl http://localhost:8000/v1/skills
+Compare raw vs enhanced responses:
 
-# Should return array of 1,080+ skills
-# If empty, check backend logs for initialization errors
+```json
+{
+  "user_id": "your-user-id",
+  "input": "What are the latest React 19 features?",
+  "provider": "openrouter",
+  "model": "openrouter/auto",
+  "memory_scope": "user"
+}
 ```
 
-### Memory Not Persisting
-
-```bash
-# Check database file exists
-ls -la ai_orchestrator.db
-
-# Check vector store
-# In backend/.env, verify:
-# VECTOR_BACKEND=memory
-
-# Test memory storage
-curl -X POST http://localhost:8000/v1/memory \
-  -H "Authorization: Bearer YOUR_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_id": "00000000-0000-0000-0000-000000000001",
-    "text": "Test memory",
-    "kind": "test",
-    "memory_scope": "user"
-  }'
+**Response:**
+```json
+{
+  "baseline": {
+    "output": "Raw LLM response...",
+    "metrics": {
+      "latency_ms": 2500,
+      "usage": {...}
+    }
+  },
+  "tuned": {
+    "output": "Enhanced response with tools and memory...",
+    "skill": "frontend_expert",
+    "tool_calls": [{"name": "web_search", "input": {...}}],
+    "metrics": {
+      "latency_ms": 3200,
+      "memory_hits": 3,
+      "tool_count": 1,
+      "usage": {...}
+    }
+  },
+  "delta": {
+    "latency_gap_ms": 700,
+    "accuracy_gap": 0.85
+  }
+}
 ```
 
-## 📚 Additional Resources
+### POST /v1/memory - Store Memory
 
-- **API Documentation**: http://localhost:8000/docs
-- **Testing Guide**: [TESTING_GUIDE.md](TESTING_GUIDE.md)
-- **Production Deployment**: [PRODUCTION_READY.md](PRODUCTION_READY.md)
-- **Competitive Advantages**: [COMPETITIVE_ADVANTAGES.md](COMPETITIVE_ADVANTAGES.md)
+```json
+{
+  "user_id": "your-user-id",
+  "text": "User prefers TypeScript over JavaScript",
+  "kind": "preference",
+  "memory_scope": "user"
+}
+```
 
-## 🎉 Summary
+### POST /v1/memory/context - Retrieve Memory
 
-Your H&S Layer is now running **locally only** on your machine:
+```json
+{
+  "user_id": "your-user-id",
+  "query": "language preferences",
+  "memory_scope": "user",
+  "top_k": 10
+}
+```
 
-✅ Backend: http://localhost:8000 (127.0.0.1 only)  
-✅ Frontend: http://localhost:3000  
-✅ API keys stored encrypted  
-✅ Memory shared across all Aurora keys for same user  
-✅ 1,080+ skills loaded  
-✅ 50+ tools available  
-✅ Ready to enhance your Featherless API!
+**Response:**
+```json
+{
+  "retrieved_memories": [
+    {
+      "text": "User prefers TypeScript over JavaScript",
+      "score": 0.92,
+      "metadata": {
+        "type": "fact",
+        "fact_type": "preference"
+      }
+    }
+  ],
+  "structured_memories": [...]
+}
+```
 
-**Next Steps:**
-1. Open http://localhost:3000
-2. Bridge your Featherless key
-3. Get your Aurora enhanced key
-4. Start building with memory, skills, and tools!
+---
+
+## 💻 Code Examples
+
+### Python
+
+```python
+import requests
+
+class HSLayer:
+    def __init__(self, aurora_key, user_id, base_url="http://localhost:8000"):
+        self.aurora_key = aurora_key
+        self.user_id = user_id
+        self.base_url = base_url
+        self.headers = {
+            "Authorization": f"Bearer {aurora_key}",
+            "Content-Type": "application/json"
+        }
+    
+    def chat(self, message, provider="openrouter", model="openrouter/auto"):
+        """Send enhanced chat request"""
+        response = requests.post(
+            f"{self.base_url}/v1/run",
+            headers=self.headers,
+            json={
+                "user_id": self.user_id,
+                "input": message,
+                "provider": provider,
+                "model": model,
+                "memory_scope": "user"
+            }
+        )
+        return response.json()
+    
+    def compare(self, message):
+        """Compare raw vs enhanced"""
+        response = requests.post(
+            f"{self.base_url}/v1/compare",
+            headers=self.headers,
+            json={
+                "user_id": self.user_id,
+                "input": message,
+                "provider": "openrouter",
+                "model": "openrouter/auto",
+                "memory_scope": "user"
+            }
+        )
+        return response.json()
+    
+    def store_memory(self, text, kind="context"):
+        """Store a memory fact"""
+        response = requests.post(
+            f"{self.base_url}/v1/memory",
+            headers=self.headers,
+            json={
+                "user_id": self.user_id,
+                "text": text,
+                "kind": kind,
+                "memory_scope": "user"
+            }
+        )
+        return response.json()
+    
+    def get_memory(self, query):
+        """Retrieve memory context"""
+        response = requests.post(
+            f"{self.base_url}/v1/memory/context",
+            headers=self.headers,
+            json={
+                "user_id": self.user_id,
+                "query": query,
+                "memory_scope": "user",
+                "top_k": 10
+            }
+        )
+        return response.json()
+
+# Usage
+hs = HSLayer(
+    aurora_key="aurora_live_YOUR_KEY",
+    user_id="your-user-id"
+)
+
+# Chat
+result = hs.chat("Write a Python function to add two numbers")
+print(result["output"])
+print(f"Skill: {result['skill']}")
+
+# Store memory
+hs.store_memory("User prefers TypeScript", kind="preference")
+
+# Compare
+comparison = hs.compare("What are the latest React 19 features?")
+print("Raw:", comparison["baseline"]["output"][:100])
+print("Enhanced:", comparison["tuned"]["output"][:100])
+```
+
+### JavaScript/TypeScript
+
+```typescript
+class HSLayer {
+    constructor(
+        private auroraKey: string,
+        private userId: string,
+        private baseUrl: string = "http://localhost:8000"
+    ) {}
+
+    async chat(message: string, provider = "openrouter", model = "openrouter/auto") {
+        const response = await fetch(`${this.baseUrl}/v1/run`, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${this.auroraKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                user_id: this.userId,
+                input: message,
+                provider,
+                model,
+                memory_scope: "user"
+            })
+        });
+        return await response.json();
+    }
+
+    async compare(message: string) {
+        const response = await fetch(`${this.baseUrl}/v1/compare`, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${this.auroraKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                user_id: this.userId,
+                input: message,
+                provider: "openrouter",
+                model: "openrouter/auto",
+                memory_scope: "user"
+            })
+        });
+        return await response.json();
+    }
+
+    async storeMemory(text: string, kind = "context") {
+        const response = await fetch(`${this.baseUrl}/v1/memory`, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${this.auroraKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                user_id: this.userId,
+                text,
+                kind,
+                memory_scope: "user"
+            })
+        });
+        return await response.json();
+    }
+}
+
+// Usage
+const hs = new HSLayer("aurora_live_YOUR_KEY", "your-user-id");
+
+const result = await hs.chat("Write a TypeScript function to add numbers");
+console.log(result.output);
+console.log("Skill:", result.skill);
+```
+
+---
+
+## 🧠 Memory System
+
+### Memory Scopes
+
+- **user** - Shared across all conversations for a user
+- **workspace** - Shared within a workspace/project
+- **conversation** - Isolated per conversation
+- **global** - Shared across all users
+
+### Automatic Fact Extraction
+
+The system automatically extracts and stores:
+
+- ✅ Names: "My name is John"
+- ✅ Preferences: "I prefer TypeScript"
+- ✅ Projects: "I'm building a SaaS product"
+- ✅ Technologies: "I use React and Node.js"
+- ✅ Goals: "I want to learn machine learning"
+- ✅ Experience: "I have 5 years of experience"
+- ✅ Location: "I'm from San Francisco"
+- ✅ Company: "I work at Google"
+
+### Memory Retrieval
+
+- Retrieves top 10 most relevant memories
+- Filters by score > 0.5
+- Uses vector similarity search
+- Fast (<50ms)
+
+---
+
+## 🎯 Skills & Tools
+
+### Skills (1,080+)
+
+Skills are automatically selected based on user intent:
+
+- **Backend:** backend_debug, api_design, database_optimize
+- **Frontend:** frontend_design, react_expert, css_master
+- **ML:** ml_model_training, data_analysis, deep_learning
+- **Security:** security_audit, penetration_testing, encryption
+- **DevOps:** ci_cd_setup, kubernetes_deploy, monitoring
+
+### Tools (55+)
+
+Tools are automatically used when beneficial:
+
+- **web_search** - Search the web for latest information
+- **code_exec** - Execute Python/JavaScript code
+- **math_exec** - Perform calculations
+- **file_read** - Read file contents
+- **image_analyze** - Analyze images
+- **api_call** - Call external APIs
+- **sql_exec** - Execute SQL queries
+- **bash** - Run shell commands
+
+---
+
+## ✅ Best Practices
+
+### 1. Use Descriptive User IDs
+
+```python
+# Good
+user_id = "user_john_smith_12345"
+
+# Bad
+user_id = "123"
+```
+
+### 2. Set Appropriate Memory Scope
+
+```python
+# For personal preferences
+memory_scope = "user"
+
+# For project-specific context
+memory_scope = "workspace"
+
+# For isolated conversations
+memory_scope = "conversation"
+```
+
+### 3. Handle Errors Gracefully
+
+```python
+try:
+    result = hs.chat("Write a function")
+    print(result["output"])
+except requests.exceptions.RequestException as e:
+    print(f"API Error: {e}")
+except KeyError as e:
+    print(f"Unexpected response format: {e}")
+```
+
+### 4. Use Specific Prompts
+
+```python
+# Good
+"Write a Python function to calculate fibonacci numbers recursively"
+
+# Bad
+"Write code"
+```
+
+### 5. Store Important Context
+
+```python
+# Store user preferences
+hs.store_memory("User prefers TypeScript", kind="preference")
+
+# Store project context
+hs.store_memory("Working on e-commerce platform", kind="project")
+
+# Store technical details
+hs.store_memory("Using React 18 and Next.js 14", kind="technology")
+```
+
+---
+
+## 🚀 Next Steps
+
+- **[Testing Guide](TESTING_GUIDE.md)** - Test your integration
+- **[API Reference](http://localhost:8000/docs)** - Full API documentation
+- **[Frontend Guide](FRONTEND_INTEGRATION_GUIDE.md)** - Integrate with frontend
+
+---
+
+**Happy coding with H&S Layer! 🎉**
