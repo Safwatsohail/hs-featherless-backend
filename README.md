@@ -10,6 +10,26 @@ An intelligent AI orchestration layer that adds 1,080+ specialized skills, 55+ t
 
 ---
 
+## 🎯 For Judges: One-Command Setup
+
+**No configuration needed! Just run:**
+
+```bash
+./SETUP_FOR_JUDGES.sh
+```
+
+This will:
+- ✅ Install all dependencies automatically
+- ✅ Set up the database
+- ✅ Start both servers
+- ✅ Open the demo in your browser
+
+**Then click "View Interactive Demo"** to see the complete flow!
+
+📖 **Full instructions**: See [README_FOR_JUDGES.md](README_FOR_JUDGES.md)
+
+---
+
 ## ✨ What Makes This Special
 
 - 🎯 **1,080+ Specialized Skills** - Auto-routes to domain experts (backend, frontend, ML, security, etc.)

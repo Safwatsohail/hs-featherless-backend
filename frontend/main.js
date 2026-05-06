@@ -1575,3 +1575,281 @@ const data: RunResponse = await res.json();`
     });
 
 })();
+
+
+// ========================================================
+// DEMO ANIMATION
+// ========================================================
+$("#authDemoBtn")?.addEventListener("click", () => {
+    go("demo");
+    startDemoAnimation();
+});
+
+$("#demoRestartBtn")?.addEventListener("click", () => {
+    startDemoAnimation();
+});
+
+$("#demoSkipBtn")?.addEventListener("click", () => {
+    currentUserId = "00000000-0000-0000-0000-000000000001";
+    go("dashboard");
+});
+
+let demoAnimationRunning = false;
+
+async function startDemoAnimation() {
+    if (demoAnimationRunning) return;
+    demoAnimationRunning = true;
+    
+    const demoContent = $("#demoContent");
+    if (!demoContent) return;
+    
+    demoContent.innerHTML = "";
+    
+    // Step 1: Welcome
+    await showDemoStep(demoContent, {
+        number: "01",
+        title: "Welcome to H&S Layer",
+        content: "H&S Layer transforms raw Featherless API keys into production-ready AI with memory, tools, and skills.",
+        duration: 2000
+    });
+    
+    // Step 2: Onboarding
+    await showDemoStep(demoContent, {
+        number: "02",
+        title: "Simple Onboarding",
+        content: "Just click 'Continue with SSO' - no complex forms, no email verification, no hassle.",
+        mockup: `
+            <div style="text-align: center; padding: 2rem;">
+                <button class="btn btn--solid btn--lg">Continue with SSO</button>
+            </div>
+        `,
+        duration: 2500
+    });
+    
+    // Step 3: API Bridge
+    await showDemoStep(demoContent, {
+        number: "03",
+        title: "Bridge Your API Key",
+        content: "Paste your Featherless key and get an enhanced key back with memory, tools, and skills built-in.",
+        mockup: `
+            <div class="demo-mockup">
+                <div style="margin-bottom: 1rem;">
+                    <span class="mono-dim">INPUT:</span> <span class="mono">fl_your_featherless_key_here</span>
+                </div>
+                <div style="text-align: center; margin: 1rem 0;">
+                    <span style="font-size: 1.5rem;">→</span>
+                </div>
+                <div>
+                    <span class="mono-dim">OUTPUT:</span> <span class="mono" style="color: var(--accent);">hs_FL7x2Q9mK3vN1pB4rD6s</span>
+                </div>
+            </div>
+        `,
+        duration: 3000
+    });
+    
+    // Step 4: Dashboard
+    await showDemoStep(demoContent, {
+        number: "04",
+        title: "Access the Dashboard",
+        content: "You're now in the dashboard with access to A/B comparison, memory management, skill store, and more.",
+        duration: 2000
+    });
+    
+    // Step 5: A/B Comparison
+    await showDemoStep(demoContent, {
+        number: "05",
+        title: "A/B Comparison - The Main Feature",
+        content: "Compare raw vs enhanced models side-by-side. Same prompt, dramatically different results.",
+        mockup: `
+            <div class="demo-comparison">
+                <div class="demo-comparison-pane">
+                    <h4><span class="dot"></span> H&S Enhanced</h4>
+                    <div class="mono-dim" style="font-size: 0.875rem;">
+                        • 1,080+ skills<br/>
+                        • 55+ tools<br/>
+                        • 3-layer memory<br/>
+                        • Syntax highlighting<br/>
+                        • Production-ready code
+                    </div>
+                </div>
+                <div class="demo-comparison-pane raw">
+                    <h4><span class="dot"></span> Raw Featherless</h4>
+                    <div class="mono-dim" style="font-size: 0.875rem;">
+                        • No skills<br/>
+                        • No tools<br/>
+                        • No memory<br/>
+                        • Plain text<br/>
+                        • Basic code
+                    </div>
+                </div>
+            </div>
+        `,
+        duration: 3500
+    });
+    
+    // Step 6: Code Generation Example
+    await showDemoStep(demoContent, {
+        number: "06",
+        title: "Code Generation Quality",
+        content: "Watch how enhanced generates production-ready code while raw gives basic output.",
+        mockup: `
+            <div style="margin-bottom: 1rem;">
+                <span class="mono-dim">PROMPT:</span> <span class="mono">"Write a Python calculator"</span>
+            </div>
+            <div class="demo-comparison">
+                <div class="demo-comparison-pane">
+                    <h4><span class="dot"></span> Enhanced Output</h4>
+                    <div class="demo-code-block">
+<span style="color: #569cd6;">def</span> <span style="color: #dcdcaa;">calculator</span>(<span style="color: #9cdcfe;">operation</span>: <span style="color: #4ec9b0;">str</span>, <span style="color: #9cdcfe;">a</span>: <span style="color: #4ec9b0;">float</span>) -> <span style="color: #4ec9b0;">float</span>:
+    <span style="color: #ce9178;">"""
+    Perform arithmetic operations.
+    
+    Args:
+        operation: Operation type
+        a: First number
+    """</span>
+    <span style="color: #c586c0;">return</span> a + b
+                    </div>
+                    <div class="mono-dim" style="font-size: 0.75rem; margin-top: 0.5rem;">
+                        ✅ Type hints • Docstrings • Syntax highlighting
+                    </div>
+                </div>
+                <div class="demo-comparison-pane raw">
+                    <h4><span class="dot"></span> Raw Output</h4>
+                    <div style="background: #f5f5f5; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.875rem; color: #666;">
+def calc(a, b):
+    return a + b
+                    </div>
+                    <div class="mono-dim" style="font-size: 0.75rem; margin-top: 0.5rem;">
+                        ❌ No types • No docs • Plain text
+                    </div>
+                </div>
+            </div>
+        `,
+        duration: 4000
+    });
+    
+    // Step 7: Tool Usage
+    await showDemoStep(demoContent, {
+        number: "07",
+        title: "Intelligent Tool Usage",
+        content: "Enhanced automatically uses tools when they add value - web search, code execution, math calculations, and more.",
+        mockup: `
+            <div class="demo-mockup">
+                <div style="margin-bottom: 1rem;">
+                    <span class="mono-dim">PROMPT:</span> <span class="mono">"What's the latest Python version?"</span>
+                </div>
+                <div style="padding: 1rem; background: var(--bg); border-radius: 4px; margin-top: 1rem;">
+                    <div style="color: var(--accent); margin-bottom: 0.5rem;">
+                        *Used: 🔍 Web Search*
+                    </div>
+                    <div class="mono-dim">
+                        The latest stable version of Python is 3.12.1, released on December 7, 2023...
+                    </div>
+                </div>
+            </div>
+        `,
+        duration: 3000
+    });
+    
+    // Step 8: Memory System
+    await showDemoStep(demoContent, {
+        number: "08",
+        title: "Unified Memory",
+        content: "Enhanced remembers user preferences, project context, and previous conversations across sessions.",
+        mockup: `
+            <div class="demo-mockup">
+                <div style="margin-bottom: 1rem;">
+                    <span class="mono-dim">CONVERSATION 1:</span>
+                    <div style="padding: 0.5rem; margin-top: 0.5rem;">
+                        <div><strong>User:</strong> My name is Alex and I prefer Python</div>
+                        <div style="margin-top: 0.5rem;"><strong>Enhanced:</strong> Got it, Alex! I'll remember that you prefer Python.</div>
+                    </div>
+                </div>
+                <div style="border-top: 1px solid var(--border); padding-top: 1rem; margin-top: 1rem;">
+                    <span class="mono-dim">CONVERSATION 2 (Later):</span>
+                    <div style="padding: 0.5rem; margin-top: 0.5rem;">
+                        <div><strong>User:</strong> Write a calculator</div>
+                        <div style="margin-top: 0.5rem;"><strong>Enhanced:</strong> Here's a Python calculator for you, Alex...</div>
+                    </div>
+                </div>
+                <div style="margin-top: 1rem; color: var(--accent); font-size: 0.875rem;">
+                    ✅ Remembered: Name (Alex) + Preference (Python)
+                </div>
+            </div>
+        `,
+        duration: 3500
+    });
+    
+    // Step 9: Ready to Try
+    await showDemoStep(demoContent, {
+        number: "09",
+        title: "Ready to Try It Yourself?",
+        content: "Click 'Skip to Dashboard' below to start exploring the live system, or restart the demo to watch again.",
+        mockup: `
+            <div style="text-align: center; padding: 2rem;">
+                <div style="margin-bottom: 2rem;">
+                    <h3 style="font-size: 1.5rem; margin-bottom: 1rem;">🎯 Key Takeaways</h3>
+                    <div style="text-align: left; max-width: 600px; margin: 0 auto;">
+                        <div style="margin-bottom: 0.75rem;">✅ <strong>1,080+ Skills</strong> - Automatically selected</div>
+                        <div style="margin-bottom: 0.75rem;">✅ <strong>55+ Tools</strong> - Intelligently used</div>
+                        <div style="margin-bottom: 0.75rem;">✅ <strong>3-Layer Memory</strong> - Remembers everything</div>
+                        <div style="margin-bottom: 0.75rem;">✅ <strong>Production Code</strong> - Claude/GPT-4 quality</div>
+                        <div style="margin-bottom: 0.75rem;">✅ <strong>One-Command Setup</strong> - No hassle</div>
+                    </div>
+                </div>
+            </div>
+        `,
+        duration: 5000
+    });
+    
+    demoAnimationRunning = false;
+}
+
+async function showDemoStep(container, step) {
+    return new Promise((resolve) => {
+        const frame = document.createElement("div");
+        frame.className = "demo-frame";
+        frame.innerHTML = `
+            <div class="demo-step">
+                <div class="demo-step-title">
+                    <span class="demo-step-number">${step.number}</span>
+                    ${step.title}
+                </div>
+                <div class="demo-step-content">
+                    <p>${step.content}</p>
+                    ${step.mockup || ""}
+                </div>
+                <div class="demo-progress">
+                    <div class="demo-progress-bar" style="width: 0%"></div>
+                </div>
+            </div>
+        `;
+        
+        container.innerHTML = "";
+        container.appendChild(frame);
+        
+        // Animate in
+        setTimeout(() => {
+            frame.classList.add("active");
+        }, 50);
+        
+        // Progress bar animation
+        const progressBar = frame.querySelector(".demo-progress-bar");
+        let progress = 0;
+        const interval = setInterval(() => {
+            progress += 2;
+            if (progressBar) {
+                progressBar.style.width = progress + "%";
+            }
+            if (progress >= 100) {
+                clearInterval(interval);
+            }
+        }, step.duration / 50);
+        
+        // Move to next step
+        setTimeout(() => {
+            resolve();
+        }, step.duration);
+    });
+}

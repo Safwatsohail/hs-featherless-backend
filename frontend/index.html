@@ -254,39 +254,47 @@
                         <li class="stepper__step"><span class="stepper__num">03</span><span>Dashboard</span></li>
                     </ol>
 
-                    <div class="auth__switcher" data-testid="auth-switcher">
-                        <button class="auth__switch is-active" data-mode="signin" data-testid="auth-tab-signin">Sign in</button>
-                        <button class="auth__switch" data-mode="signup" data-testid="auth-tab-signup">Create account</button>
-                    </div>
-                    <h1 class="auth__title" id="authTitle">Welcome back.</h1>
-                    <p class="auth__sub" id="authSub">Sign in to your H&amp;S workspace. Next you'll bridge your Featherless key.</p>
+                    <h1 class="auth__title" id="authTitle">Welcome to H&amp;S Layer</h1>
+                    <p class="auth__sub" id="authSub">Continue with SSO to access your enhanced workspace, or view a demo of the complete flow.</p>
 
-                    <form class="auth__form" id="authForm" onsubmit="return false;">
-                        <label class="field">
-                            <span class="field__label">Email</span>
-                            <input type="email" autocomplete="email" placeholder="you@company.com" data-testid="auth-email-input" required />
-                        </label>
-                        <label class="field" id="nameField" hidden>
-                            <span class="field__label">Full name</span>
-                            <input type="text" placeholder="Ada Lovelace" data-testid="auth-name-input" />
-                        </label>
-                        <label class="field">
-                            <span class="field__label">Password</span>
-                            <input type="password" placeholder="••••••••••" data-testid="auth-password-input" required />
-                        </label>
-                        <button class="btn btn--solid btn--lg btn--block" id="authSubmit" data-testid="auth-submit-btn">Continue →</button>
-                    </form>
-
-                    <div class="auth__divider"><span>or</span></div>
-                    <button class="btn btn--ghost btn--lg btn--block" id="authSsoBtn" data-testid="auth-sso-btn">
+                    <!-- SSO Button (Primary) -->
+                    <button class="btn btn--solid btn--lg btn--block" id="authSsoBtn" data-testid="auth-sso-btn" style="margin-top: 2rem;">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18M3 12h18"/></svg>
                         Continue with SSO
                     </button>
 
-                    <p class="auth__fineprint">
+                    <!-- Demo Button -->
+                    <button class="btn btn--ghost btn--lg btn--block" id="authDemoBtn" data-testid="auth-demo-btn" style="margin-top: 1rem;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        View Interactive Demo
+                    </button>
+
+                    <p class="auth__fineprint" style="margin-top: 2rem;">
                         Already have an enhanced key?
                         <a href="#dashboard" data-route="dashboard" data-testid="auth-skip-dash">Skip to dashboard →</a>
                     </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ DEMO ANIMATION ============ -->
+        <section class="route" data-route="demo" id="demo" hidden>
+            <div class="demo-container">
+                <a href="#auth" data-route="auth" class="auth__back" style="position: absolute; top: 2rem; left: 2rem; z-index: 100;">← Back to Auth</a>
+                
+                <div class="demo-stage" id="demoStage">
+                    <div class="demo-overlay">
+                        <h1 class="demo-title">H&amp;S Layer Demo</h1>
+                        <p class="demo-subtitle">Watch the complete flow from onboarding to A/B comparison</p>
+                    </div>
+                    
+                    <!-- Demo will be rendered here via JavaScript -->
+                    <div class="demo-content" id="demoContent"></div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn--ghost" id="demoRestartBtn">↻ Restart</button>
+                        <button class="btn btn--solid" id="demoSkipBtn">Skip to Dashboard →</button>
+                    </div>
                 </div>
             </div>
         </section>
