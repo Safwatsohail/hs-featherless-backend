@@ -1,44 +1,38 @@
 #!/bin/bash
 
 # ============================================
-# H&S LAYER - ONE-COMMAND SETUP FOR JUDGES
+# H&S LAYER - ONE-COMMAND START
 # ============================================
-# This script sets up everything automatically
-# No manual configuration needed!
+# This script does EVERYTHING:
+# - Checks requirements
+# - Installs dependencies
+# - Sets up database
+# - Starts servers
+# - Opens browser
 # ============================================
 
 set -e  # Exit on any error
 
 echo "╔═══════════════════════════════════════════════════════════════╗"
 echo "║                                                               ║"
-echo "║           🚀 H&S Layer - Automated Setup for Judges          ║"
+echo "║                    🚀 H&S Layer - Starting                    ║"
 echo "║                                                               ║"
 echo "╚═══════════════════════════════════════════════════════════════╝"
 echo ""
-echo "This script will:"
-echo "  ✓ Check system requirements"
-echo "  ✓ Install Python dependencies"
-echo "  ✓ Set up the database"
-echo "  ✓ Configure API keys"
-echo "  ✓ Start both servers"
-echo "  ✓ Open the demo in your browser"
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
 
 # Check if Python 3 is installed
-echo "🔍 Checking Python installation..."
+echo "🔍 Checking Python..."
 if ! command -v python3 &> /dev/null; then
     echo "❌ Python 3 is not installed!"
-    echo "   Please install Python 3.8+ from https://www.python.org/downloads/"
+    echo "   Install from: https://www.python.org/downloads/"
     exit 1
 fi
 
 PYTHON_VERSION=$(python3 --version | cut -d' ' -f2 | cut -d'.' -f1,2)
-echo "✅ Found Python $PYTHON_VERSION"
+echo "✅ Python $PYTHON_VERSION found"
 echo ""
 
-# Check if we're on macOS, Linux, or Windows
+# Detect OS
 OS="$(uname -s)"
 case "${OS}" in
     Linux*)     MACHINE=Linux;;
@@ -46,50 +40,47 @@ case "${OS}" in
     CYGWIN*|MINGW*|MSYS*) MACHINE=Windows;;
     *)          MACHINE="UNKNOWN:${OS}"
 esac
-echo "💻 Detected OS: $MACHINE"
+echo "💻 OS: $MACHINE"
 echo ""
 
-# Create virtual environment if it doesn't exist
-echo "🔧 Setting up Python virtual environment..."
+# Setup backend
+echo "🔧 Setting up backend..."
 cd backend
+
+# Create virtual environment if needed
 if [ ! -d ".venv" ]; then
+    echo "   Creating virtual environment..."
     python3 -m venv .venv
-    echo "✅ Virtual environment created"
-else
-    echo "✅ Virtual environment already exists"
 fi
 
 # Activate virtual environment
-echo "🔌 Activating virtual environment..."
+echo "   Activating virtual environment..."
 source .venv/bin/activate
 
 # Install dependencies
-echo "📦 Installing Python dependencies..."
+echo "   Installing dependencies..."
 pip install --upgrade pip > /dev/null 2>&1
 pip install -r requirements.txt > /dev/null 2>&1
-echo "✅ Dependencies installed"
+echo "✅ Backend ready"
 echo ""
 
-# Set up database
-echo "🗄️  Setting up database..."
+# Setup database
 if [ ! -f "ai_orchestrator.db" ]; then
+    echo "🗄️  Initializing database..."
     python3 -c "from app.db.init_db import init_db; import asyncio; asyncio.run(init_db())" > /dev/null 2>&1
-    echo "✅ Database initialized"
+    echo "✅ Database ready"
 else
     echo "✅ Database already exists"
 fi
 echo ""
 
-# Check if .env exists, if not create from example
-echo "⚙️  Configuring environment..."
+# Setup .env
 if [ ! -f ".env" ]; then
+    echo "⚙️  Creating .env..."
     if [ -f ".env.example" ]; then
         cp .env.example .env
-        echo "✅ Created .env from template"
     else
-        echo "⚠️  No .env.example found, creating basic .env"
         cat > .env << 'EOF'
-# H&S Layer Configuration
 DATABASE_URL=sqlite+aiosqlite:///./ai_orchestrator.db
 SECRET_KEY=your-secret-key-here-change-in-production
 REDIS_URL=redis://localhost:6379
@@ -98,36 +89,74 @@ DEFAULT_LLM_MODEL=openrouter/auto
 LOG_LEVEL=INFO
 EOF
     fi
+    echo "✅ Configuration ready"
 else
-    echo "✅ .env already configured"
+    echo "✅ Configuration exists"
 fi
 echo ""
 
 cd ..
 
-# Check if servers are already running
+# Stop any existing servers
 echo "🔍 Checking for running servers..."
 if lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null 2>&1 ; then
-    echo "⚠️  Backend already running on port 8000"
-    echo "   Stopping existing server..."
-    bash STOP_SERVERS.sh > /dev/null 2>&1 || true
+    echo "   Stopping existing servers..."
+    bash STOP.sh > /dev/null 2>&1 || true
     sleep 2
 fi
 
-# Start servers
-echo "🚀 Starting servers..."
-bash START_SERVERS.sh
+# Start backend
+echo "🚀 Starting backend..."
+cd backend
+source .venv/bin/activate
+nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload > ../backend.log 2>&1 &
+BACKEND_PID=$!
+echo $BACKEND_PID > ../.backend.pid
+cd ..
+echo "✅ Backend started (PID: $BACKEND_PID)"
+
+# Start frontend
+echo "🚀 Starting frontend..."
+cd frontend
+nohup python3 -m http.server 3000 > ../frontend.log 2>&1 &
+FRONTEND_PID=$!
+echo $FRONTEND_PID > ../.frontend.pid
+cd ..
+echo "✅ Frontend started (PID: $FRONTEND_PID)"
+
+# Wait for backend to be ready
+echo ""
+echo "⏳ Waiting for backend to be ready..."
+for i in {1..30}; do
+    if curl -s http://localhost:8000/healthz > /dev/null 2>&1; then
+        echo "✅ Backend is ready!"
+        break
+    fi
+    sleep 1
+    if [ $i -eq 30 ]; then
+        echo "⚠️  Backend taking longer than expected, but continuing..."
+    fi
+done
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "✅ SETUP COMPLETE!"
+echo "✅ ALL SYSTEMS RUNNING!"
 echo ""
-echo "🎉 H&S Layer is now running!"
+echo "🔥 Backend:  http://localhost:8000"
+echo "🎨 Frontend: http://localhost:3000"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "🌐 OPEN IN BROWSER:"
+echo "🔑 CREDENTIALS:"
+echo ""
+echo "   Aurora Key:     aurora_live_****************************"
+echo "   User ID:        00000000-0000-0000-0000-000000000001"
+echo "   OpenRouter Key: (configure in dashboard)"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "🚀 OPEN IN BROWSER:"
 echo ""
 echo "   👉 http://localhost:3000"
 echo ""
@@ -137,32 +166,26 @@ echo "📋 QUICK START:"
 echo ""
 echo "   1. Click 'View Interactive Demo' to see the complete flow"
 echo "   2. Or click 'Continue with SSO' to access the dashboard"
-echo "   3. Try the A/B comparison with: 'Write a Python calculator'"
+echo "   3. Try: 'Write a Python calculator'"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "🛑 TO STOP SERVERS:"
+echo "🛑 TO STOP:"
 echo ""
-echo "   ./STOP_SERVERS.sh"
+echo "   ./STOP.sh"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-# Try to open browser automatically
-sleep 3
+# Open browser
+sleep 2
 if command -v open &> /dev/null; then
-    # macOS
     open http://localhost:3000
 elif command -v xdg-open &> /dev/null; then
-    # Linux
     xdg-open http://localhost:3000
 elif command -v start &> /dev/null; then
-    # Windows
     start http://localhost:3000
-else
-    echo "💡 Please open http://localhost:3000 in your browser"
 fi
 
-echo ""
-echo "🎬 Ready to demo! Enjoy exploring H&S Layer!"
+echo "🎉 Ready! Enjoy H&S Layer!"
 echo ""
