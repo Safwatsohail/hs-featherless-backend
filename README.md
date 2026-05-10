@@ -1,4 +1,4 @@
-# 🚀 H&S Layer - Enhanced AI API
+# 🚀 H&S Layer — Enhanced AI API
 
 > Transform any LLM into a 10x better AI with skills, tools, and memory
 
@@ -9,398 +9,697 @@
 
 ## 📋 Table of Contents
 
-1. [Complete Setup Tutorial](#-complete-setup-tutorial)
-2. [What You'll See](#-what-youll-see)
-3. [Test Examples](#-test-examples)
-4. [Troubleshooting](#-troubleshooting)
-5. [Key Features](#-key-features)
-6. [Project Structure](#-project-structure)
+1. [Quick Start](#-quick-start)
+2. [Setup Tutorial](#-setup-tutorial)
+3. [How the Backend Works](#-how-the-backend-works)
+4. [Aurora API Key — How It Works](#-aurora-api-key--how-it-works)
+5. [The Planner (Mini) Model](#-the-planner-mini-model)
+6. [Complete Backend Pipeline](#-complete-backend-pipeline)
+7. [Raw vs Enhanced](#-raw-vs-enhanced)
+8. [Test Examples](#-test-examples)
+9. [API Reference](#-api-reference)
+10. [Troubleshooting](#-troubleshooting)
+11. [Project Structure](#-project-structure)
 
 ---
 
-## 🎓 Complete Setup Tutorial
-
-### Step 1: Check System Requirements
-
-Before starting, ensure you have:
-
-- **Python 3.8 or higher** installed
-- **Git** installed
-- **2GB RAM** minimum
-- **500MB disk space** free
-- **Internet connection** for dependencies
-
-#### How to Check Python:
-
-**On Mac/Linux:**
-```bash
-python3 --version
-```
-
-**On Windows:**
-```bash
-python --version
-```
-
-**Expected output:** `Python 3.8.x` or higher
-
-#### Don't Have Python?
-
-**Mac:**
-```bash
-brew install python3
-```
-Or download from: https://www.python.org/downloads/
-
-**Windows:**
-Download from: https://www.python.org/downloads/
-- ✅ Check "Add Python to PATH" during installation
-
-**Linux (Ubuntu/Debian):**
-```bash
-sudo apt update
-sudo apt install python3 python3-pip python3-venv
-```
-
----
-
-### Step 2: Clone the Repository
-
-Open your terminal and run:
+## ⚡ Quick Start
 
 ```bash
 git clone https://github.com/Safwatsohail/hs-featherless-backend.git
+cd hs-featherless-backend
+./START.sh
 ```
 
-**Expected output:**
-```
-Cloning into 'hs-featherless-backend'...
-remote: Enumerating objects: ...
-remote: Counting objects: 100% ...
-Receiving objects: 100% ...
+Browser opens automatically at **http://localhost:3000**. That's it.
+
+To stop:
+```bash
+./STOP.sh
 ```
 
 ---
 
-### Step 3: Navigate to the Project
+## 🎓 Setup Tutorial
+
+### Step 1 — Check Requirements
+
+You need:
+- **Python 3.8+** — check with `python3 --version`
+- **Git** — check with `git --version`
+- **2GB RAM** minimum
+- **Internet connection** for first-time dependency install
+
+**Install Python if missing:**
+
+Mac: `brew install python3`
+Linux: `sudo apt install python3 python3-pip python3-venv`
+Windows: https://www.python.org/downloads/ — check "Add Python to PATH"
+
+---
+
+### Step 2 — Clone the Repo
 
 ```bash
+git clone https://github.com/Safwatsohail/hs-featherless-backend.git
 cd hs-featherless-backend
 ```
 
-**Verify you're in the right place:**
-```bash
-ls
-```
-
-**You should see:**
-- `backend/` folder
-- `frontend/` folder
-- `START.sh` file
-- `STOP.sh` file
-- `README.md` file
+After `cd`, run `ls` — you should see `backend/`, `frontend/`, `START.sh`, `STOP.sh`.
 
 ---
 
-### Step 4: Start Everything (One Command!)
+### Step 3 — Run START.sh
 
 ```bash
 ./START.sh
 ```
 
-**What happens:**
+This single command does everything:
 
-1. **Checks Python** (5 seconds)
-   ```
-   🔍 Checking Python...
-   ✅ Python 3.x found
-   ```
+```
+🔍 Checking Python...          ✅ Python 3.x found
+💻 OS: Mac
+🔧 Setting up backend...
+   Creating virtual environment...
+   Installing dependencies...   (first run: ~30 seconds)
+✅ Backend ready
+🗄️  Initializing database...   ✅ Database ready
+⚙️  Creating .env...            ✅ Configuration ready
+🚀 Starting backend...          ✅ Backend started (PID: 12345)
+🚀 Starting frontend...         ✅ Frontend started (PID: 12346)
+🎉 Ready! Opening browser...
+```
 
-2. **Detects your OS** (1 second)
-   ```
-   💻 OS: Mac/Linux/Windows
-   ```
-
-3. **Sets up backend** (20-30 seconds)
-   ```
-   🔧 Setting up backend...
-      Creating virtual environment...
-      Activating virtual environment...
-      Installing dependencies...
-   ✅ Backend ready
-   ```
-
-4. **Initializes database** (5 seconds)
-   ```
-   🗄️  Initializing database...
-   ✅ Database ready
-   ```
-
-5. **Creates configuration** (2 seconds)
-   ```
-   ⚙️  Creating .env...
-   ✅ Configuration ready
-   ```
-
-6. **Starts servers** (5 seconds)
-   ```
-   🚀 Starting backend...
-   ✅ Backend started (PID: 12345)
-   🚀 Starting frontend...
-   ✅ Frontend started (PID: 12346)
-   ```
-
-7. **Opens browser** (automatic)
-   ```
-   🎉 Ready! Enjoy H&S Layer!
-   ```
-
-**Total time:** 30-60 seconds
-
-**Your browser will automatically open to:** http://localhost:3000
+**Total time:** 30–60 seconds on first run, ~5 seconds after that.
 
 ---
 
-### Step 5: Choose Your Experience
+### Step 4 — Explore
 
-You'll see two options:
+Two options on the screen:
 
-#### Option A: View Interactive Demo (Recommended First)
-
-1. Click **"View Interactive Demo"** button
-2. Watch a 9-step cinematic walkthrough
-3. See the complete system without any setup
-4. Takes 2-3 minutes
-
-**What you'll see:**
-- Welcome and introduction
-- Simple onboarding flow
-- API key bridging
-- Dashboard features
-- A/B comparison demo
-- Code generation quality
-- Tool usage examples
-- Memory system demo
-- Ready to try live
-
-#### Option B: Try Live Dashboard
-
-1. Click **"Continue with SSO"** button
-2. Access the full dashboard immediately
-3. Try real A/B comparisons
-4. Test with live models
+- **"View Interactive Demo"** — 9-step cinematic walkthrough, no setup needed
+- **"Continue with SSO"** — jump straight into the live dashboard
 
 ---
 
-### Step 6: Test the System
-
-Once in the dashboard, try these examples:
-
-#### Example 1: Code Generation
-**Input:**
-```
-Write a Python calculator
-```
-
-**What to observe:**
-- **Left pane (Enhanced)**: Production-ready code with type hints, docstrings, syntax highlighting
-- **Right pane (Raw)**: Basic code, plain text, no structure
-
-#### Example 2: Research Query
-**Input:**
-```
-What's the latest version of Python?
-```
-
-**What to observe:**
-- **Enhanced**: Uses web search tool, shows current info
-- **Raw**: Generic answer, might be outdated
-
-#### Example 3: Math Calculation
-**Input:**
-```
-Calculate 2^10
-```
-
-**What to observe:**
-- **Enhanced**: Uses math execution tool, precise answer (1024)
-- **Raw**: Text answer, might be wrong
-
----
-
-### Step 7: Stop the Servers
-
-When you're done testing:
+### Step 5 — Stop
 
 ```bash
 ./STOP.sh
 ```
 
-**What happens:**
+---
+
+## 🏗 How the Backend Works
+
+The backend is a **FastAPI** application running on port 8000. It acts as an intelligent middleware layer between your frontend and any LLM provider (OpenRouter, Featherless).
+
+When the app starts it:
+- Loads **1,080+ built-in skills** into the database
+- Initialises a **vector store** (ChromaDB or in-memory) for semantic memory
+- Sets up an **encrypted key store** (AES) for provider API keys
+- Registers all API routes
+
+The core idea: instead of calling an LLM directly, every request goes through the **Orchestrator** — a pipeline that adds skills, tools, and memory before the LLM ever sees the message.
+
+---
+
+## 🔑 Aurora API Key — How It Works
+
+The Aurora key (`aurora_live_xxxxx`) is your identity token for the H&S Layer API. Here is the exact flow:
+
+### Step 1 — Issue a key (one time)
+
 ```
-🛑 Stopping backend (PID: 12345)...
-✅ Backend stopped
-🛑 Stopping frontend (PID: 12346)...
-✅ Frontend stopped
-✅ All servers stopped!
+POST /auth/issue-key
+Body: { user_id, name, scopes: ["run", "memory", "tools"] }
+
+→ Backend generates:  aurora_live_<random_24_chars>
+→ Hashes it with SHA-256
+→ Stores the HASH in the database (never the raw key)
+→ Returns the raw key ONCE — frontend must save it
 ```
+
+### Step 2 — Store your provider key (one time)
+
+The Aurora key identifies you, but the backend also needs your actual OpenRouter or Featherless key to call the LLM:
+
+```
+POST /apikey
+Header: Authorization: Bearer aurora_live_xxxxx
+Body: { user_id, provider: "openrouter", api_key: "sk-or-v1-..." }
+
+→ Backend encrypts the provider key with AES
+→ Stores the encrypted version in SQLite
+→ Decrypts it on every request — never exposed
+```
+
+### Step 3 — Every API call
+
+Frontend sends the Aurora key on every request as a Bearer token:
+
+```
+POST /v1/compare
+Header: Authorization: Bearer aurora_live_xxxxx
+Body: { user_id, input, provider, model }
+```
+
+Backend validates it like this:
+
+```
+1. Read Authorization header → extract raw key
+2. SHA-256 hash the raw key
+3. Look up the hash in aurora_api_keys table
+4. If found → get user_id + scopes → proceed
+5. If not found → 401 Unauthorized
+6. If TEST_MODE_ENABLED in .env → use demo key automatically (no header needed)
+```
+
+### Two ways to send the key
+
+```bash
+# Option 1 — x-aurora-key header
+curl -H "x-aurora-key: aurora_live_xxxxx" ...
+
+# Option 2 — Bearer token (what the frontend uses)
+curl -H "Authorization: Bearer aurora_live_xxxxx" ...
+```
+
+---
+
+## 🧠 The Planner (Mini) Model
+
+Your system runs **two models** on every enhanced request — a cheap fast one to plan, and the main one to respond.
+
+### The two models
+
+```
+PLANNER MODEL (mini/fast)          MAIN MODEL (full/smart)
+─────────────────────────          ──────────────────────
+Config: DECISION_LLM_MODEL         Config: DEFAULT_LLM_MODEL
+Default: gpt-4.1-nano              Default: gpt-4.1-mini
+
+Runs FIRST                         Runs SECOND
+Makes decisions                    Generates the actual answer
+Cheap + fast                       Full quality
+```
+
+### What the planner decides
+
+**1. Which skill to use** — if keyword matching doesn't find a clear match, the planner reads the user message and picks the best skill from the 1,080+ catalog.
+
+**2. Which tools to call** — if smart keyword matching doesn't trigger a tool, the planner looks at the message + available tool specs and decides which tools to run.
+
+### When the planner is skipped
+
+For common patterns, keyword matching handles it instantly without calling the planner at all:
+
+```
+"write/create/code/python"  → code_assistant skill  (no planner needed)
+"debug/fix/error/bug"       → debug skill            (no planner needed)
+"research/analyze/latest"   → deep_research skill    (no planner needed)
+"review/optimize/refactor"  → review skill           (no planner needed)
+```
+
+The planner only kicks in for ambiguous queries where keywords don't match.
+
+### Configure in .env
+
+```bash
+DECISION_LLM_PROVIDER=openrouter   # can be different from main provider
+DECISION_LLM_MODEL=gpt-4.1-nano    # cheap fast model for planning
+DEFAULT_LLM_PROVIDER=openrouter    # main provider
+DEFAULT_LLM_MODEL=gpt-4.1-mini     # main model for responses
+```
+
+If `DECISION_LLM_PROVIDER` is not set, the planner uses the same provider as the main model — just a cheaper/faster model variant.
+
+---
+
+## 🔄 Complete Backend Pipeline
+
+This is the exact sequence of what happens from the moment a user sends a message to when they get a response.
+
+### The two parallel paths
+
+When you call `/v1/compare`, the backend runs **two paths simultaneously** — one raw, one enhanced — and returns both.
+
+---
+
+### RAW PATH (right pane — dumb baseline)
+
+```
+User message
+    │
+    ▼
+Direct LLMClient call
+    │
+    ├── System prompt: "You are a basic AI. Answer briefly."
+    ├── Temperature: 0.9 (random, imprecise)
+    ├── No skills
+    ├── No tools
+    └── No memory
+    │
+    ▼
+Raw LLM response → returned as baseline{}
+```
+
+---
+
+### ENHANCED PATH (left pane — full pipeline)
+
+```
+User message
+    │
+    ▼
+─────────────────────────────────────────
+STAGE 1 — AUTH & SETUP
+─────────────────────────────────────────
+    │
+    ├── Validate Aurora key (hash lookup in DB)
+    ├── Fetch + decrypt stored OpenRouter/Featherless key
+    ├── Create LLMClient (main model)
+    └── Create planner LLMClient (mini model)
+    │
+    ▼
+─────────────────────────────────────────
+STAGE 2 — SKILL ROUTING
+─────────────────────────────────────────
+    │
+    ├── Keyword match (instant, no LLM):
+    │       "write/code/python"  → code_assistant
+    │       "debug/fix/error"    → debug
+    │       "research/latest"    → deep_research
+    │       "review/optimize"    → review
+    │       "sql/dashboard"      → data_analyst
+    │
+    └── No match? → Planner model (gpt-4.1-nano) reads
+                    message + skill catalog → picks best skill
+    │
+    ▼
+─────────────────────────────────────────
+STAGE 3 — MEMORY RETRIEVAL
+─────────────────────────────────────────
+    │
+    ├── Short-term memory: last 5 messages from SQLite
+    │
+    ├── Vector memory: semantic search across all stored facts
+    │       top 10 results, filtered to score > 0.5
+    │       e.g. "User's name is Alex", "User prefers Python"
+    │
+    └── Facts auto-extracted after each turn:
+            names, preferences, projects, technologies,
+            goals, experience, location, company
+    │
+    ▼
+─────────────────────────────────────────
+STAGE 4 — SYSTEM PROMPT CONSTRUCTION
+─────────────────────────────────────────
+    │
+    Assembled in this order:
+    │
+    ├── [1] Skill template (e.g. code_assistant prompt)
+    ├── [2] Memory context (relevant facts from vector search)
+    ├── [3] Recent conversation (last 5 messages)
+    ├── [4] Enhanced capabilities section (tools + skills + memory)
+    ├── [5] Response excellence guidelines (code structure rules)
+    └── [6] Critical rules (no meta-commentary, one code block, etc.)
+    │
+    ▼
+─────────────────────────────────────────
+STAGE 5 — TOOL SELECTION
+─────────────────────────────────────────
+    │
+    ├── Skip check: is it a greeting? (hi/hello/thanks) → no tools
+    ├── Skip check: < 15 chars and not code-related? → no tools
+    │
+    ├── Smart keyword matching:
+    │       ".pdf" in input          → pdf_analyze
+    │       "latest/current/news"    → web_search
+    │       "calculate/compute/math" → math_exec
+    │       "execute/run/test code"  → code_exec
+    │       "read file/open file"    → file_read
+    │       "analyze image"          → image_analyze
+    │       "write/create/generate"  → code_exec (for code)
+    │
+    └── No match? → Planner model decides which tools to use
+    │
+    ▼
+─────────────────────────────────────────
+STAGE 6 — TOOL EXECUTION
+─────────────────────────────────────────
+    │
+    For each selected tool:
+    │
+    ├── code_exec      → runs Python/JS in sandboxed env
+    ├── math_exec      → evaluates mathematical expressions
+    ├── web_search     → searches the web via API
+    ├── deep_search    → multi-page deep research
+    ├── file_read      → reads local files
+    ├── image_analyze  → analyzes images with vision model
+    ├── pdf_analyze    → extracts and analyzes PDF content
+    ├── sql_exec       → executes SQL queries
+    ├── api_call       → makes HTTP requests
+    └── bash           → runs bash commands (restricted)
+    │
+    Tool results injected into messages as:
+    "Tool Results: ⚡ Code Execution
+     Raw Data: {output: '...'}
+     Use these results to answer."
+    │
+    ▼
+─────────────────────────────────────────
+STAGE 7 — LLM GENERATION
+─────────────────────────────────────────
+    │
+    Temperature optimised by query type:
+    ├── "write/create/code/function" → 0.1 (very precise)
+    ├── "brainstorm/creative/story"  → 0.7 (more varied)
+    └── everything else              → 0.2 (balanced)
+    │
+    Messages sent to LLM:
+    ├── [system] full system prompt (skill + memory + guidelines)
+    ├── [user]   original user message
+    └── [user]   tool results (if any tools ran)
+    │
+    → Calls OpenRouter / Featherless API
+    → Returns: content, token usage, raw response
+    │
+    ▼
+─────────────────────────────────────────
+STAGE 8 — RESPONSE CLEANUP
+─────────────────────────────────────────
+    │
+    ├── Remove meta-commentary ("As an AI...", "I apologize...")
+    ├── Fix malformed code blocks (missing backticks, wrong format)
+    ├── Auto-detect language if missing (python/javascript/typescript)
+    ├── Remove duplicate code blocks (keep first/best)
+    ├── Clean up excessive newlines (max 3)
+    ├── Remove HTML artifacts (class="...", <tags>)
+    └── Prepend tool usage header ("*Used: ⚡ Code Execution*")
+    │
+    ▼
+─────────────────────────────────────────
+STAGE 9 — MEMORY STORAGE
+─────────────────────────────────────────
+    │
+    ├── Save user message to SQLite (messages table)
+    ├── Save assistant reply to SQLite (messages table)
+    ├── Extract facts from conversation → store in vector DB
+    │       "My name is Alex" → "User's name is Alex"
+    │       "I prefer Python" → "User prefers Python"
+    │       "I work at Google" → "User works at Google"
+    └── Store structured turn data (skill, tools used, token count)
+    │
+    ▼
+─────────────────────────────────────────
+STAGE 10 — RESPONSE RETURNED
+─────────────────────────────────────────
+    │
+    OrchestratorResult:
+    ├── conversation_id  → UUID for this conversation
+    ├── skill            → "code_assistant"
+    ├── output           → cleaned, formatted response
+    ├── tool_calls       → [{ name: "code_exec", input: {...} }]
+    ├── tool_results     → [{ name, output, metadata }]
+    ├── provider         → "openrouter"
+    ├── model            → "openrouter/auto"
+    ├── memory_hits      → 2
+    └── usage            → { prompt_tokens, completion_tokens, total_tokens }
+```
+
+---
+
+### Final response shape from /v1/compare
+
+```json
+{
+  "baseline": {
+    "title": "Raw Model API",
+    "output": "basic response, no tools, no memory",
+    "metrics": {
+      "latency_ms": 900,
+      "tool_count": 0,
+      "memory_hits": 0,
+      "estimated_accuracy": 58
+    }
+  },
+  "tuned": {
+    "title": "HNS Tuned API",
+    "skill": "code_assistant",
+    "output": "production-ready response with syntax highlighting",
+    "tool_calls": [{ "name": "code_exec" }],
+    "metrics": {
+      "latency_ms": 1800,
+      "tool_count": 1,
+      "memory_hits": 2,
+      "estimated_accuracy": 86
+    }
+  },
+  "delta": {
+    "accuracy_gap": 28,
+    "tool_advantage": 1,
+    "memory_advantage": 2,
+    "efficiency_gap": 12
+  }
+}
+```
+
+---
+
+## 📊 Raw vs Enhanced
+
+| Feature | Raw Model | Enhanced Model |
+|---------|-----------|----------------|
+| **Skills** | ❌ 0 | ✅ 1,080+ auto-selected |
+| **Tools** | ❌ 0 | ✅ 55+ intelligent selection |
+| **Memory** | ❌ None | ✅ 3-layer system |
+| **Planner model** | ❌ None | ✅ gpt-4.1-nano decides |
+| **Code quality** | ⚠️ Basic | ✅ Production-ready |
+| **Type hints** | ❌ No | ✅ Always |
+| **Docstrings** | ❌ No | ✅ Comprehensive |
+| **Error handling** | ❌ No | ✅ try/except + validation |
+| **Syntax highlighting** | ❌ Plain text | ✅ VS Code Dark+ theme |
+| **Temperature** | 🎲 0.9 random | 🎯 0.1–0.7 optimised |
+| **System prompt** | 📝 1 line | 🔥 Full context + guidelines |
+| **Response cleanup** | ❌ None | ✅ 8-step pipeline |
+
+---
+
+## 🧪 Test Examples
+
+### Greeting
+Input: `hi`
+- **Enhanced** → "Hello! How can I help you today?" (short, no code)
+- **Raw** → "Hello" (very basic)
+
+### Code generation
+Input: `Write a Python calculator`
+- **Enhanced** → production code, type hints, docstrings, syntax highlighting, code_exec tool used
+- **Raw** → basic code, no structure, plain text
+
+### Research
+Input: `What's the latest version of Python?`
+- **Enhanced** → uses web_search tool, current accurate answer
+- **Raw** → possibly outdated answer, no tool
+
+### Math
+Input: `Calculate 2^10`
+- **Enhanced** → uses math_exec tool, answer: 1024
+- **Raw** → "approximately 1000" (wrong)
+
+---
+
+## 📡 API Reference
+
+### Authentication
+
+All endpoints (except `/auth/issue-key` and `/healthz`) require:
+```
+Authorization: Bearer aurora_live_xxxxx
+```
+or:
+```
+x-aurora-key: aurora_live_xxxxx
+```
+
+---
+
+### Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/auth/issue-key` | Generate an Aurora enhanced key |
+| `POST` | `/apikey` | Store a provider API key (encrypted) |
+| `POST` | `/v1/run` | Enhanced chat (skills + tools + memory) |
+| `POST` | `/v1/compare` | A/B compare raw vs enhanced |
+| `POST` | `/v1/skills/{name}` | Invoke a specific skill |
+| `GET`  | `/v1/skills` | List all available skills |
+| `POST` | `/v1/tools/{name}` | Execute a specific tool |
+| `GET`  | `/tools` | List all tools |
+| `POST` | `/v1/memory` | Store a memory fact |
+| `POST` | `/v1/memory/context` | Retrieve memory context |
+| `GET`  | `/healthz` | Health check |
+| `GET`  | `/docs` | Interactive API docs (Swagger) |
+
+---
+
+### POST /v1/run — Enhanced chat
+
+```bash
+curl -X POST http://localhost:8000/v1/run \
+  -H "Authorization: Bearer aurora_live_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "00000000-0000-0000-0000-000000000001",
+    "input": "Write a Python calculator",
+    "provider": "openrouter",
+    "model": "openrouter/auto"
+  }'
+```
+
+**Response:**
+```json
+{
+  "conversation_id": "uuid",
+  "skill": "code_assistant",
+  "output": "Here is a production-ready calculator:\n\n```python\n...",
+  "provider": "openrouter",
+  "model": "openrouter/auto",
+  "tool_calls": [{ "name": "code_exec", "input": {} }],
+  "metrics": {
+    "memory_hits": 2,
+    "tool_count": 1,
+    "usage": { "prompt_tokens": 450, "completion_tokens": 320, "total_tokens": 770 }
+  }
+}
+```
+
+---
+
+### POST /v1/compare — A/B comparison
+
+```bash
+curl -X POST http://localhost:8000/v1/compare \
+  -H "Authorization: Bearer aurora_live_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "00000000-0000-0000-0000-000000000001",
+    "input": "Write a Python calculator",
+    "provider": "openrouter",
+    "model": "openrouter/auto"
+  }'
+```
+
+Returns `baseline{}` (raw) + `tuned{}` (enhanced) + `delta{}` (difference metrics).
+
+---
+
+### POST /auth/issue-key — Generate Aurora key
+
+```bash
+curl -X POST http://localhost:8000/auth/issue-key \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "00000000-0000-0000-0000-000000000001",
+    "name": "my-app",
+    "scopes": ["run", "memory", "tools", "skills"]
+  }'
+```
+
+**Response:**
+```json
+{
+  "api_key": "aurora_live_xxxxx",
+  "user_id": "...",
+  "scopes": ["run", "memory", "tools", "skills"]
+}
+```
+
+Save `api_key` — it is shown **once only**.
+
+---
+
+### POST /apikey — Store provider key
+
+```bash
+curl -X POST http://localhost:8000/apikey \
+  -H "Authorization: Bearer aurora_live_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "00000000-0000-0000-0000-000000000001",
+    "provider": "openrouter",
+    "api_key": "sk-or-v1-..."
+  }'
+```
+
+---
+
+### Memory scopes
+
+| Scope | Shared across | Use case |
+|-------|--------------|----------|
+| `user` | All keys for same user_id | Personal preferences, facts |
+| `workspace` | Same context_key | Project-specific knowledge |
+| `conversation` | Single conversation_id | Private session |
+| `global` | All users | Shared knowledge base |
 
 ---
 
 ## 🔧 Troubleshooting
 
-### Problem 1: "Permission denied" when running START.sh
-
-**Solution:**
+### "Permission denied" on START.sh
 ```bash
 chmod +x START.sh STOP.sh
 ./START.sh
 ```
 
----
+### "Python not found"
+Mac: `brew install python3`
+Linux: `sudo apt install python3 python3-pip python3-venv`
+Windows: https://www.python.org/downloads/ — check "Add Python to PATH"
 
-### Problem 2: "Python not found"
-
-**Symptoms:**
-```
-❌ Python 3 is not installed!
-```
-
-**Solution:**
-
-**Mac:**
+### "Port already in use"
 ```bash
-brew install python3
+./STOP.sh && sleep 2 && ./START.sh
 ```
-
-**Windows:**
-1. Download from https://www.python.org/downloads/
-2. Run installer
-3. ✅ Check "Add Python to PATH"
-4. Restart terminal
-5. Try again
-
-**Linux:**
+If still stuck:
 ```bash
-sudo apt update
-sudo apt install python3 python3-pip python3-venv
-```
-
----
-
-### Problem 3: "Port already in use"
-
-**Symptoms:**
-```
-Error: Address already in use
-```
-
-**Solution:**
-```bash
-./STOP.sh
-sleep 2
-./START.sh
-```
-
-**If that doesn't work:**
-
-**Find and kill process on port 8000:**
-```bash
-# Mac/Linux
-lsof -ti:8000 | xargs kill -9
-
-# Windows
-netstat -ano | findstr :8000
-taskkill /PID <PID_NUMBER> /F
-```
-
-**Find and kill process on port 3000:**
-```bash
-# Mac/Linux
+lsof -ti:8000 | xargs kill -9   # Mac/Linux
 lsof -ti:3000 | xargs kill -9
-
-# Windows
-netstat -ano | findstr :3000
-taskkill /PID <PID_NUMBER> /F
 ```
 
----
-
-### Problem 4: "Module not found" errors
-
-**Symptoms:**
-```
-ModuleNotFoundError: No module named 'fastapi'
-```
-
-**Solution:**
+### "Module not found"
 ```bash
 cd backend
-source .venv/bin/activate  # Mac/Linux
-# OR
-.venv\Scripts\activate     # Windows
-
+source .venv/bin/activate
 pip install -r requirements.txt
 cd ..
 ./START.sh
 ```
 
----
-
-### Problem 5: Browser doesn't open automatically
-
-**Solution:**
-
-Manually open your browser and go to:
-```
-http://localhost:3000
-```
-
----
-
-### Problem 6: "Database locked" error
-
-**Symptoms:**
-```
-sqlite3.OperationalError: database is locked
-```
-
-**Solution:**
+### "Database locked"
 ```bash
 ./STOP.sh
 rm backend/ai_orchestrator.db
 ./START.sh
 ```
 
----
-
-### Problem 7: Blank page or "Cannot connect"
-
-**Check if servers are running:**
+### Backend not responding
 ```bash
-# Check backend
-curl http://localhost:8000/healthz
-
-# Expected: {"ok":true}
+curl http://localhost:8000/healthz   # should return {"ok":true}
+tail -f backend.log                  # check for errors
 ```
 
-**If backend not responding:**
-```bash
-./STOP.sh
-./START.sh
-```
+### Browser doesn't open
+Manually go to: http://localhost:3000
 
-**Check logs:**
-```bash
-tail -f backend.log
-tail -f frontend.log
-```
+### Slow first install
+Normal — pip downloads ~50 packages. Should be under 2 minutes on a decent connection.
 
----
-
-### Problem 8: "Virtual environment not found"
-
-**Solution:**
+### Virtual environment broken
 ```bash
 cd backend
 rm -rf .venv
@@ -413,438 +712,81 @@ cd ..
 
 ---
 
-### Problem 9: Slow installation
-
-**Symptoms:**
-Installation takes more than 5 minutes
-
-**Solution:**
-
-**Use faster mirror (Mac/Linux):**
-```bash
-cd backend
-source .venv/bin/activate
-pip install -r requirements.txt --index-url https://pypi.org/simple
-```
-
-**Check internet connection:**
-```bash
-ping google.com
-```
-
----
-
-### Problem 10: "Command not found: ./START.sh"
-
-**Solution:**
-
-**Make sure you're in the right directory:**
-```bash
-pwd
-# Should show: .../hs-featherless-backend
-```
-
-**If not:**
-```bash
-cd hs-featherless-backend
-./START.sh
-```
-
----
-
-## 🎬 What You'll See
-
-### Dashboard Overview
-
-Once started, you'll have access to:
-
-#### 1. **A/B Chat** (Main Feature)
-- **Left Pane**: H&S Enhanced
-  - 1,080+ skills
-  - 55+ tools
-  - 3-layer memory
-  - Syntax highlighting
-  - Production-ready code
-
-- **Right Pane**: Raw Featherless
-  - No skills
-  - No tools
-  - No memory
-  - Plain text
-  - Basic code
-
-#### 2. **Unified Memory**
-- View all stored facts
-- Edit or delete memories
-- Filter by tags
-- Export as JSON
-
-#### 3. **Skill Store**
-- 1,080+ specialized skills
-- Toggle on/off
-- See overhead metrics
-- Auto-routing based on query
-
-#### 4. **Tool Builder**
-- 55+ built-in tools
-- Create custom tools
-- Sandboxed execution
-- 50ms budget per tool
-
-#### 5. **API Key Management**
-- Generate Aurora keys
-- Store provider keys
-- Test connections
-- View usage stats
-
-#### 6. **Developer Docs**
-- Complete API reference
-- Code examples (cURL, Python, JavaScript, TypeScript)
-- Endpoint documentation
-- Memory scopes explained
-
----
-
-## 🧪 Test Examples
-
-### Example 1: Simple Greeting
-
-**Input:**
-```
-hi
-```
-
-**Enhanced Output:**
-```
-Hello! How can I help you today?
-```
-- ✅ Short and friendly
-- ✅ No unnecessary code
-
-**Raw Output:**
-```
-Hello
-```
-- ⚠️ Very basic
-
----
-
-### Example 2: Code Generation
-
-**Input:**
-```
-Write a Python calculator
-```
-
-**Enhanced Output:**
-```python
-def calculator(operation: str, a: float, b: float) -> float:
-    """
-    Perform basic arithmetic operations.
-    
-    Args:
-        operation: Operation type (add/subtract/multiply/divide)
-        a: First number
-        b: Second number
-    
-    Returns:
-        Result of the operation
-    
-    Raises:
-        ValueError: If operation is invalid or division by zero
-    """
-    if operation == 'add':
-        return a + b
-    elif operation == 'subtract':
-        return a - b
-    elif operation == 'multiply':
-        return a * b
-    elif operation == 'divide':
-        if b == 0:
-            raise ValueError('Cannot divide by zero')
-        return a / b
-    else:
-        raise ValueError(f'Invalid operation: {operation}')
-```
-- ✅ Type hints
-- ✅ Comprehensive docstring
-- ✅ Error handling
-- ✅ Syntax highlighting
-
-**Raw Output:**
-```python
-def calc(a, b, op):
-    if op == 'add':
-        return a + b
-    elif op == 'sub':
-        return a - b
-```
-- ❌ No type hints
-- ❌ No docstring
-- ❌ No error handling
-- ❌ Plain text
-
----
-
-### Example 3: Research Query
-
-**Input:**
-```
-What's the latest version of Python?
-```
-
-**Enhanced Output:**
-```
-*Used: 🔍 Web Search*
-
-The latest stable version of Python is 3.12.1, released on December 7, 2023.
-It includes performance improvements, better error messages, and new features...
-```
-- ✅ Uses web search tool
-- ✅ Current information
-- ✅ Shows tool usage
-
-**Raw Output:**
-```
-Python 3.11 is the latest version.
-```
-- ❌ Outdated information
-- ❌ No tool usage
-
----
-
-### Example 4: Math Calculation
-
-**Input:**
-```
-Calculate 2^10
-```
-
-**Enhanced Output:**
-```
-*Used: 🧮 Math Calculation*
-
-2^10 = 1024
-```
-- ✅ Uses math execution tool
-- ✅ Precise answer
-- ✅ Shows calculation
-
-**Raw Output:**
-```
-2 to the power of 10 is approximately 1000.
-```
-- ❌ Wrong answer
-- ❌ No tool usage
-
----
-
-## 📊 Raw vs Enhanced Comparison
-
-| Feature | Raw Model | Enhanced Model |
-|---------|-----------|----------------|
-| **Skills** | ❌ 0 | ✅ 1,080+ |
-| **Tools** | ❌ 0 | ✅ 55+ |
-| **Memory** | ❌ None | ✅ 3-layer system |
-| **Code Quality** | ⚠️ Basic | ✅ Production-ready |
-| **Type Hints** | ❌ No | ✅ Yes |
-| **Docstrings** | ❌ No | ✅ Comprehensive |
-| **Error Handling** | ❌ No | ✅ Proper try/except |
-| **Syntax Highlighting** | ❌ Plain text | ✅ VS Code theme |
-| **Temperature** | 🎲 0.9 (random) | 🎯 0.1 (precise) |
-| **Tool Usage** | ❌ Never | ✅ When beneficial |
-| **Memory Recall** | ❌ Never | ✅ Automatic |
-| **Response Time** | ⚡ Fast | ⚡ Fast (+3ms) |
-
----
-
-## ✨ Key Features
-
-### 1. **1,080+ Specialized Skills**
-
-Skills are automatically selected based on your query:
-
-- **Code queries** → `code_assistant` skill
-- **Research queries** → `deep_research` skill
-- **Debug queries** → `debug` skill
-- **Review queries** → `review` skill
-- **Data queries** → `data_analyst` skill
-
-### 2. **55+ Built-in Tools**
-
-Tools are intelligently used when they add value:
-
-- 🔍 **Web Search** - Current information from the internet
-- ⚡ **Code Execution** - Run Python/JavaScript code
-- 🧮 **Math Calculations** - Precise mathematical results
-- 📄 **File Operations** - Read and analyze files
-- 🖼️ **Image Analysis** - Analyze images
-- 📑 **PDF Analysis** - Extract text from PDFs
-- 🗄️ **Database Queries** - SQL execution
-- 🌐 **API Calls** - Make HTTP requests
-
-### 3. **3-Layer Memory System**
-
-- **Short-term**: Recent conversation (last 5 messages)
-- **Vector Memory**: Semantic search (top 10, score > 0.5)
-- **Fact Extraction**: Auto-captures names, preferences, projects, technologies
-
-### 4. **Production-Ready Code**
-
-Every code response includes:
-- ✅ Type hints on all functions
-- ✅ Comprehensive docstrings (Args, Returns, Raises)
-- ✅ Proper error handling (try/except, validation)
-- ✅ Clean structure and formatting
-- ✅ Syntax highlighting (VS Code Dark+ theme)
-
-### 5. **Multi-Provider Support**
-
-Works with:
-- OpenRouter (30,000+ models)
-- Featherless (open-source models)
-
-### 6. **Beautiful UI**
-
-- IDE-style syntax highlighting
-- Side-by-side A/B comparison
-- Real-time streaming responses
-- Tool usage indicators
-- Memory context display
-
----
-
 ## 📁 Project Structure
 
 ```
 hs-featherless-backend/
 │
-├── backend/                    # FastAPI backend
+├── backend/
 │   ├── app/
-│   │   ├── routes/            # API endpoints
-│   │   │   ├── public_api.py  # Main API routes
-│   │   │   └── ...
-│   │   ├── services/          # Business logic
-│   │   │   ├── orchestrator.py # Main orchestration
-│   │   │   ├── llm_client.py   # LLM communication
-│   │   │   ├── memory_engine.py # Memory management
-│   │   │   ├── skill_engine.py  # Skill routing
-│   │   │   └── tool_engine.py   # Tool execution
-│   │   ├── models/            # Database models
-│   │   ├── schemas/           # Pydantic schemas
-│   │   └── core/              # Configuration
-│   ├── requirements.txt       # Python dependencies
-│   └── .env                   # Configuration (auto-created)
+│   │   ├── core/
+│   │   │   ├── config.py          # All settings (providers, timeouts, models)
+│   │   │   └── logging.py         # Logging configuration
+│   │   ├── db/
+│   │   │   ├── session.py         # SQLite async session
+│   │   │   └── init_db.py         # Schema creation on startup
+│   │   ├── models/
+│   │   │   ├── conversation.py    # Conversations + messages tables
+│   │   │   ├── memory_metadata.py # Structured memory facts table
+│   │   │   ├── aurora_api_key.py  # Aurora key table
+│   │   │   └── api_key.py         # Provider key table (encrypted)
+│   │   ├── routes/
+│   │   │   ├── public_api.py      # /v1/run, /v1/compare, /v1/memory
+│   │   │   ├── aurora_auth.py     # /auth/issue-key
+│   │   │   ├── apikey.py          # /apikey
+│   │   │   ├── skills.py          # /skills
+│   │   │   └── tools.py           # /tools
+│   │   ├── services/
+│   │   │   ├── orchestrator.py    # Core pipeline (skill→memory→tools→LLM)
+│   │   │   ├── llm_client.py      # HTTP calls to OpenRouter/Featherless
+│   │   │   ├── skill_engine.py    # 1,080+ skill definitions + routing
+│   │   │   ├── memory_engine.py   # Short-term + vector memory
+│   │   │   ├── tool_engine.py     # 55+ tool executors
+│   │   │   ├── vector_store.py    # ChromaDB or in-memory embeddings
+│   │   │   ├── cache_layer.py     # Redis or local cache
+│   │   │   ├── aurora_auth_service.py  # Aurora key issue + validate
+│   │   │   └── api_key_service.py # Encrypted provider key storage
+│   │   └── utils/
+│   │       └── crypto.py          # AES encryption for stored keys
+│   ├── requirements.txt
+│   └── .env                       # Auto-created by START.sh
 │
-├── frontend/                  # Web interface
-│   ├── index.html            # Main HTML
-│   ├── main.js               # JavaScript logic
-│   └── style.css             # Styles
+├── frontend/
+│   ├── index.html                 # Main UI
+│   ├── main.js                    # All frontend logic
+│   └── style.css                  # VS Code Dark+ theme + layout
 │
-├── examples/                  # Code examples
-│   ├── python_chatbot.py     # Python example
-│   └── nodejs_chatbot.js     # Node.js example
+├── examples/
+│   ├── python_chatbot.py          # Python integration example
+│   └── nodejs_chatbot.js          # Node.js integration example
 │
-├── START.sh                   # Start everything
-├── STOP.sh                    # Stop servers
-├── README.md                  # This file
-│
-├── backend.log                # Backend logs (auto-created)
-├── frontend.log               # Frontend logs (auto-created)
-├── .backend.pid               # Backend process ID (auto-created)
-└── .frontend.pid              # Frontend process ID (auto-created)
+├── START.sh                       # One-command setup + start
+├── STOP.sh                        # Stop all servers
+└── README.md                      # This file
 ```
 
 ---
 
 ## 🚀 Quick Reference
 
-### Start the system:
 ```bash
-./START.sh
+./START.sh                          # setup + start everything
+./STOP.sh                           # stop everything
+
+curl http://localhost:8000/healthz  # check backend is alive
+tail -f backend.log                 # watch backend logs
+tail -f frontend.log                # watch frontend logs
+
+http://localhost:3000               # frontend
+http://localhost:8000/docs          # swagger API docs
+http://localhost:8000/healthz       # health check
 ```
-
-### Stop the system:
-```bash
-./STOP.sh
-```
-
-### Check if running:
-```bash
-curl http://localhost:8000/healthz
-```
-
-### View logs:
-```bash
-tail -f backend.log
-tail -f frontend.log
-```
-
-### Access URLs:
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8000
-- **API Docs**: http://localhost:8000/docs
-- **Health Check**: http://localhost:8000/healthz
-
----
-
-## 📞 Support
-
-### If you encounter issues:
-
-1. **Check logs:**
-   ```bash
-   tail -f backend.log
-   tail -f frontend.log
-   ```
-
-2. **Restart servers:**
-   ```bash
-   ./STOP.sh
-   ./START.sh
-   ```
-
-3. **Check Python version:**
-   ```bash
-   python3 --version
-   ```
-
-4. **Verify ports are free:**
-   ```bash
-   lsof -i :8000
-   lsof -i :3000
-   ```
-
-5. **Reinstall dependencies:**
-   ```bash
-   cd backend
-   rm -rf .venv
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   cd ..
-   ./START.sh
-   ```
 
 ---
 
 ## 📄 License
 
-MIT License - See LICENSE file for details
-
----
-
-## 🎉 Ready to Start?
-
-```bash
-git clone https://github.com/Safwatsohail/hs-featherless-backend.git
-cd hs-featherless-backend
-./START.sh
-```
-
-**That's it!** Your browser will open automatically.
-
-**Enjoy exploring H&S Layer!** 🚀
+MIT — see LICENSE file.
 
 ---
 
