@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import uuid
 from dataclasses import dataclass
 
@@ -250,100 +251,14 @@ class Orchestrator:
                 }
             )
 
-        # Optimize temperature based on task type
-        # Lower temperature for code generation, higher for creative tasks
-        temperature = 0.2  # Default for precise, deterministic responses
-        if any(keyword in user_input.lower() for keyword in ['write', 'create', 'generate', 'code', 'function', 'script', 'program', 'class', 'implement']):
-            temperature = 0.1  # Very low for code generation - more deterministic
-        elif any(keyword in user_input.lower() for keyword in ['brainstorm', 'creative', 'story', 'idea', 'imagine']):
-            temperature = 0.7  # Higher for creative tasks
+        is_code_request = self._is_code_generation_request(user_input)
+        temperature = 0.1 if is_code_request else 0.2
+        if not is_code_request and any(keyword in user_input.lower() for keyword in ['brainstorm', 'creative', 'story', 'idea', 'imagine']):
+            temperature = 0.7
         
         final = await llm.generate(model=selected_model, messages=messages, temperature=temperature)
-        output_text = final.content.strip()
+        output_text = self._cleanup_model_output(final.content, user_input=user_input)
         
-        # AGGRESSIVE CLEANUP - Make responses user-friendly
-        
-        # 1. Remove meta-commentary and thinking patterns
-        meta_patterns = [
-            "Here's my response to the given prompt:",
-            "I'm just a text-based model and don't have the ability to",
-            "I can only respond based on the user prompt given to me.",
-            "As an AI language model,",
-            "As an AI assistant,",
-            "I apologize, but",
-            "I'm sorry, but",
-        ]
-        for pattern in meta_patterns:
-            if pattern in output_text:
-                # Remove the entire line containing the pattern
-                lines = output_text.split('\n')
-                output_text = '\n'.join(line for line in lines if pattern not in line)
-        
-        # 2. Fix malformed code blocks - CRITICAL FIX
-        import re
-        
-        # Fix missing opening backticks: `python\ndef foo() -> ```python\ndef foo()
-        output_text = re.sub(r'`(\w+)\s*\n', r'```\1\n', output_text)
-        
-        # Fix code blocks that start without backticks but have proper indentation
-        # Look for patterns like: def function_name or class ClassName at start of line
-        if re.search(r'^(def|class|import|from|async def|@)\s+\w+', output_text, re.MULTILINE):
-            # Check if there's no opening ```
-            if not output_text.startswith('```') and '```' not in output_text[:50]:
-                # Detect language from content
-                if re.search(r'\b(def|class|import|from|async|await)\b', output_text):
-                    lang = 'python'
-                elif re.search(r'\b(function|const|let|var|class|=>)\b', output_text):
-                    lang = 'javascript'
-                elif re.search(r'\b(interface|type|enum|namespace)\b', output_text):
-                    lang = 'typescript'
-                else:
-                    lang = 'python'  # default
-                
-                # Wrap the code block
-                output_text = f'```{lang}\n{output_text}\n```'
-        
-        # Fix code blocks missing closing backticks
-        if output_text.count('```') % 2 != 0:
-            output_text += '\n```'
-        
-        # 3. Clean up excessive newlines
-        output_text = re.sub(r'\n{4,}', '\n\n\n', output_text)
-        
-        # 4. Remove trailing quotes if the entire response is wrapped in quotes
-        output_text = output_text.strip('"').strip("'").strip()
-        
-        # 5. Ensure code blocks have proper spacing
-        output_text = re.sub(r'```(\w+)\n', r'```\1\n', output_text)
-        output_text = re.sub(r'\n```\s*$', r'\n```', output_text)
-        
-        # 6. Remove HTML artifacts that might appear in responses
-        output_text = re.sub(r'class="[^"]*"', '', output_text)
-        output_text = re.sub(r'<[^>]+>', '', output_text)
-        
-        # 7. Remove duplicate code blocks (keep only the first/best one)
-        # Find all code blocks
-        code_blocks = re.findall(r'```(\w+)?\n(.*?)```', output_text, re.DOTALL)
-        if len(code_blocks) > 1:
-            # Check if they're duplicates or very similar
-            seen_code = set()
-            blocks_to_remove = []
-            for i, (lang, code) in enumerate(code_blocks):
-                code_normalized = re.sub(r'\s+', '', code.strip())
-                if code_normalized in seen_code:
-                    # This is a duplicate, mark for removal
-                    blocks_to_remove.append(i)
-                else:
-                    seen_code.add(code_normalized)
-            
-            # Remove duplicate blocks (keep first occurrence)
-            if blocks_to_remove:
-                all_blocks = list(re.finditer(r'```(\w+)?\n(.*?)```', output_text, re.DOTALL))
-                for idx in reversed(blocks_to_remove):
-                    match = all_blocks[idx]
-                    output_text = output_text[:match.start()] + output_text[match.end():]
-        
-        # 8. Add tool usage header (like Claude shows what tools it used)
         if tool_outputs:
             tool_header_parts = []
             for tool_out in tool_outputs:
@@ -615,6 +530,140 @@ class Orchestrator:
         if not vector_hits:
             return "No relevant memories."
         return "\n".join(str(hit.get("text") or "")[:800] for hit in vector_hits)
+
+    @staticmethod
+    def _is_code_generation_request(user_input: str) -> bool:
+        normalized = user_input.lower()
+        return any(
+            keyword in normalized
+            for keyword in [
+                "write", "create", "generate", "code", "function", "script",
+                "program", "class", "implement", "build", "python", "javascript",
+                "typescript", "java", "c++", "rust", "go", "calculator",
+            ]
+        )
+
+    def _cleanup_model_output(self, content: str, *, user_input: str) -> str:
+        output_text = content.strip().strip('"').strip("'").strip()
+        for pattern in [
+            "Here's my response to the given prompt:",
+            "I'm just a text-based model and don't have the ability to",
+            "I can only respond based on the user prompt given to me.",
+            "As an AI language model,",
+            "As an AI assistant,",
+            "I apologize, but",
+            "I'm sorry, but",
+        ]:
+            output_text = "\n".join(
+                line for line in output_text.splitlines() if pattern not in line
+            ).strip()
+
+        output_text = re.sub(r'class="[^"]*"', "", output_text)
+        output_text = re.sub(r"<(?!/?(?:br|p|ul|ol|li)\b)[^>]+>", "", output_text)
+        output_text = re.sub(r"\n{4,}", "\n\n\n", output_text).strip()
+
+        if self._is_code_generation_request(user_input):
+            output_text = self._normalize_code_response(output_text, user_input=user_input)
+        elif output_text.count("```") % 2 != 0:
+            output_text += "\n```"
+
+        return output_text
+
+    def _normalize_code_response(self, output_text: str, *, user_input: str) -> str:
+        lang = self._detect_code_language(user_input, output_text)
+        output_text = re.sub(r"(?m)^`{3,}\s*([A-Za-z0-9_+#.-]+)?\s*$", lambda m: f"```{m.group(1) or ''}".rstrip(), output_text)
+
+        blocks = list(re.finditer(r"```([A-Za-z0-9_+#.-]*)\n([\s\S]*?)```", output_text))
+        if blocks:
+            seen: set[str] = set()
+            rebuilt = []
+            last = 0
+            for block in blocks:
+                block_lang = block.group(1).strip() or lang
+                code = self._normalize_code_block(block.group(2), block_lang)
+                normalized_code = re.sub(r"\s+", "", code)
+                rebuilt.append(output_text[last:block.start()])
+                if normalized_code not in seen:
+                    rebuilt.append(f"```{block_lang}\n{code}\n```")
+                    seen.add(normalized_code)
+                last = block.end()
+            rebuilt.append(output_text[last:])
+            return re.sub(r"\n{4,}", "\n\n\n", "".join(rebuilt)).strip()
+
+        if self._looks_like_standalone_code(output_text):
+            return f"```{lang}\n{self._normalize_code_block(output_text, lang)}\n```"
+
+        return output_text
+
+    @staticmethod
+    def _normalize_code_block(code: str, language: str) -> str:
+        code = code.replace("\r\n", "\n").replace("\r", "\n").strip()
+        code = re.sub(r"`\s*\n\s*([A-Za-z_][A-Za-z0-9_]*)\s*\n", r"\1", code)
+        code = re.sub(r"\n\s*([A-Za-z_][A-Za-z0-9_]*)\s*\n(?=[.,;:])", r" \1", code)
+        code = re.sub(r"(?<=\w) {2,}(?=\w)", " ", code)
+        code = re.sub(r"(?m)^([ \t]*)`([^`\n]+)`$", r"\1\2", code)
+        code = re.sub(r"\n{3,}", "\n\n", code)
+        if language.lower() not in {"python", "py"}:
+            return code
+
+        lines = [line.rstrip() for line in code.replace("\t", "    ").split("\n")]
+        while lines and not lines[0].strip():
+            lines.pop(0)
+        while lines and not lines[-1].strip():
+            lines.pop()
+
+        normalized: list[str] = []
+        in_docstring = False
+        for line in lines:
+            stripped = line.strip()
+            if not stripped:
+                normalized.append("")
+                continue
+
+            leading = len(line) - len(line.lstrip(" "))
+            if leading:
+                leading = max(4, ((leading + 3) // 4) * 4)
+
+            if stripped.startswith(('"""', "'''")):
+                in_docstring = not (stripped.count('"""') == 2 or stripped.count("'''") == 2)
+            elif in_docstring and stripped.endswith(('"""', "'''")):
+                in_docstring = False
+
+            normalized.append((" " * leading) + stripped)
+
+        return "\n".join(normalized)
+
+    @staticmethod
+    def _detect_code_language(user_input: str, output_text: str) -> str:
+        combined = f"{user_input}\n{output_text}".lower()
+        if "typescript" in combined or re.search(r"\binterface\s+\w+|:\s*(string|number|boolean)\b", output_text):
+            return "typescript"
+        if "javascript" in combined or re.search(r"\b(const|let|function)\s+\w+|=>", output_text):
+            return "javascript"
+        if "bash" in combined or "shell" in combined:
+            return "bash"
+        if "java" in combined and "javascript" not in combined:
+            return "java"
+        if "c++" in combined or "cpp" in combined:
+            return "cpp"
+        if "go " in combined or "golang" in combined:
+            return "go"
+        if "rust" in combined:
+            return "rust"
+        return "python"
+
+    @staticmethod
+    def _looks_like_standalone_code(output_text: str) -> bool:
+        lines = [line for line in output_text.strip().splitlines() if line.strip()]
+        if not lines:
+            return False
+        codeish = sum(
+            1
+            for line in lines
+            if re.match(r"\s*(def |class |import |from |async def |@|const |let |function |export |interface |type |public |private )", line)
+            or line.startswith(("    ", "\t", "}", "});"))
+        )
+        return codeish / len(lines) >= 0.55
 
     def _is_tool_call_allowed(self, *, skill_config: dict, tool_call: ToolCall) -> bool:
         tool_rules = skill_config.get("tool_rules") or {}

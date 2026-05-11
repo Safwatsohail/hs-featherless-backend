@@ -33,7 +33,7 @@
     }
 
     // ---------- router ----------
-    const VALID_ROUTES = ["landing", "auth", "onboarding", "dashboard"];
+    const VALID_ROUTES = ["landing", "auth", "demo", "onboarding", "dashboard"];
 
     function go(route, opts = {}) {
         if (!VALID_ROUTES.includes(route)) route = "landing";
@@ -305,6 +305,11 @@
             if (compareUserIdEl) {
                 compareUserIdEl.value = currentUserId;
             }
+            // Also fill in the OpenRouter key field with what the user entered
+            const compareOpenRouterKeyEl = $("#compareOpenRouterKey");
+            if (compareOpenRouterKeyEl) {
+                compareOpenRouterKeyEl.value = fl;
+            }
             
             bridgeRunBtn.disabled = false;
             bridgeRunBtn.textContent = "Regenerate";
@@ -423,128 +428,36 @@
     }
 
     function formatMarkdownish(text) {
-        return text
-            // Code blocks with syntax highlighting
-            .replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
-                const language = lang || 'text';
-                const highlighted = highlightCode(code.trim(), language);
-                return '<div class="code-block-container"><div class="code-block-header"><span class="code-block-lang">' + language.toUpperCase() + '</span><button class="code-copy-btn" onclick="copyCodeBlock(this)" data-code="' + encodeURIComponent(code.trim()) + '">Copy</button></div><pre class="code-block-content"><code>' + highlighted + '</code></pre></div>';
-            })
-            // Inline code
-            .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
-            // Bold text
-            .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-            // Italic text
-            .replace(/\*(.+?)\*/g, "<em>$1</em>")
-            // Headers
-            .replace(/^### (.*$)/gm, '<h3 class="md-header">$1</h3>')
-            .replace(/^## (.*$)/gm, '<h2 class="md-header">$1</h2>')
-            .replace(/^# (.*$)/gm, '<h1 class="md-header">$1</h1>')
-            // Lists
-            .replace(/^\* (.+)$/gm, '<li class="md-list-item">$1</li>')
-            .replace(/(<li class="md-list-item">.*<\/li>)/gs, '<ul class="md-list">$1</ul>')
-            // Links
-            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="md-link">$1</a>');
+        const parts = String(text || "").split(/```([A-Za-z0-9_+#.-]*)\n([\s\S]*?)```/g);
+        let html = "";
+
+        for (let i = 0; i < parts.length; i += 3) {
+            const prose = parts[i] || "";
+            if (prose.trim()) {
+                html += `<div class="plain-response">${escapeHtml(prose).replace(/\n/g, "<br>")}</div>`;
+            }
+
+            const lang = parts[i + 1];
+            const code = parts[i + 2];
+            if (code !== undefined) {
+                const language = lang || "text";
+                const cleanCode = code.trim();
+                html += '<div class="code-block-container">' +
+                    '<div class="code-block-header">' +
+                    '<span class="code-block-lang">' + escapeHtml(language.toUpperCase()) + '</span>' +
+                    '<button class="code-copy-btn" onclick="copyCodeBlock(this)" data-code="' + encodeURIComponent(cleanCode) + '">Copy</button>' +
+                    '</div>' +
+                    '<pre class="code-block-content"><code>' + escapeHtml(cleanCode) + '</code></pre>' +
+                    '</div>';
+            }
+        }
+
+        return html || `<div class="plain-response">${escapeHtml(text)}</div>`;
     }
 
     function highlightCode(code, language) {
-        // Enhanced syntax highlighting for common languages with better patterns
-        if (!code) return '';
-        
-        // Escape HTML first
-        let highlighted = code
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
-        
-        const lang = language.toLowerCase();
-        
-        if (lang === 'python') {
-            // Python syntax highlighting - comprehensive
-            highlighted = highlighted
-                // Comments (must be first to avoid highlighting keywords in comments)
-                .replace(/(#.*$)/gm, '<span class="syntax-comment">$1</span>')
-                // Docstrings (triple quotes)
-                .replace(/("""[\s\S]*?"""|'''[\s\S]*?''')/g, '<span class="syntax-string">$1</span>')
-                // Strings (single/double quotes)
-                .replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, '<span class="syntax-string">$1</span>')
-                // Decorators
-                .replace(/(@\w+)/g, '<span class="syntax-decorator">$1</span>')
-                // Keywords
-                .replace(/\b(def|class|if|elif|else|for|while|try|except|finally|import|from|return|yield|async|await|with|as|lambda|pass|break|continue|global|nonlocal|raise|assert|del|in|is|not|and|or)\b/g, '<span class="syntax-keyword">$1</span>')
-                // Built-in functions
-                .replace(/\b(print|input|len|range|str|int|float|list|dict|set|tuple|bool|type|isinstance|enumerate|zip|map|filter|sum|max|min|abs|round|sorted|reversed|open|read|write|close|super|property|staticmethod|classmethod)\b/g, '<span class="syntax-builtin">$1</span>')
-                // Function definitions (def function_name)
-                .replace(/\b(def)\s+([a-zA-Z_][a-zA-Z0-9_]*)/g, '<span class="syntax-keyword">$1</span> <span class="syntax-function">$2</span>')
-                // Class definitions (class ClassName)
-                .replace(/\b(class)\s+([a-zA-Z_][a-zA-Z0-9_]*)/g, '<span class="syntax-keyword">$1</span> <span class="syntax-class">$2</span>')
-                // Numbers (including floats and hex)
-                .replace(/\b(0x[0-9a-fA-F]+|\d+\.?\d*)\b/g, '<span class="syntax-number">$1</span>')
-                // Boolean and None
-                .replace(/\b(True|False|None)\b/g, '<span class="syntax-constant">$1</span>')
-                // Self and cls
-                .replace(/\b(self|cls)\b/g, '<span class="syntax-special">$1</span>');
-                
-        } else if (lang === 'javascript' || lang === 'js') {
-            // JavaScript syntax highlighting - comprehensive
-            highlighted = highlighted
-                // Comments
-                .replace(/(\/\/.*$)/gm, '<span class="syntax-comment">$1</span>')
-                .replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="syntax-comment">$1</span>')
-                // Template literals
-                .replace(/(`(?:[^`\\]|\\.)*`)/g, '<span class="syntax-string">$1</span>')
-                // Strings
-                .replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, '<span class="syntax-string">$1</span>')
-                // Keywords
-                .replace(/\b(const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|async|await|try|catch|throw|new|class|extends|import|export|default|from|of)\b/g, '<span class="syntax-keyword">$1</span>')
-                // Built-in objects
-                .replace(/\b(console|document|window|Array|Object|String|Number|Boolean|Math|Date|JSON|Promise|setTimeout|setInterval|fetch|localStorage|sessionStorage)\b/g, '<span class="syntax-builtin">$1</span>')
-                // Function declarations
-                .replace(/\b(function)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)/g, '<span class="syntax-keyword">$1</span> <span class="syntax-function">$2</span>')
-                // Arrow functions
-                .replace(/\b([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*\(/g, '<span class="syntax-function">$1</span> = (')
-                // Numbers
-                .replace(/\b(\d+\.?\d*)\b/g, '<span class="syntax-number">$1</span>')
-                // Boolean and null
-                .replace(/\b(true|false|null|undefined)\b/g, '<span class="syntax-constant">$1</span>')
-                // this keyword
-                .replace(/\b(this)\b/g, '<span class="syntax-special">$1</span>');
-                
-        } else if (lang === 'typescript' || lang === 'ts') {
-            // TypeScript syntax highlighting - comprehensive
-            highlighted = highlighted
-                // Comments
-                .replace(/(\/\/.*$)/gm, '<span class="syntax-comment">$1</span>')
-                .replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="syntax-comment">$1</span>')
-                // Template literals
-                .replace(/(`(?:[^`\\]|\\.)*`)/g, '<span class="syntax-string">$1</span>')
-                // Strings
-                .replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, '<span class="syntax-string">$1</span>')
-                // Keywords (including TS-specific)
-                .replace(/\b(interface|type|enum|declare|namespace|module|abstract|implements|readonly|const|let|var|function|return|if|else|for|while|async|await|try|catch|throw|new|class|extends|import|export|default|public|private|protected)\b/g, '<span class="syntax-keyword">$1</span>')
-                // Type annotations
-                .replace(/:\s*([A-Z][a-zA-Z0-9_<>[\]|&]*)/g, ': <span class="syntax-type">$1</span>')
-                // Numbers
-                .replace(/\b(\d+\.?\d*)\b/g, '<span class="syntax-number">$1</span>')
-                // Boolean and null
-                .replace(/\b(true|false|null|undefined)\b/g, '<span class="syntax-constant">$1</span>');
-                
-        } else if (lang === 'bash' || lang === 'sh' || lang === 'shell') {
-            // Bash syntax highlighting
-            highlighted = highlighted
-                // Comments
-                .replace(/(#.*$)/gm, '<span class="syntax-comment">$1</span>')
-                // Strings
-                .replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, '<span class="syntax-string">$1</span>')
-                // Commands
-                .replace(/\b(echo|cd|ls|pwd|mkdir|rm|cp|mv|cat|grep|sed|awk|curl|wget|git|npm|pip|python|node)\b/g, '<span class="syntax-keyword">$1</span>')
-                // Variables
-                .replace(/(\$\{?[a-zA-Z_][a-zA-Z0-9_]*\}?)/g, '<span class="syntax-builtin">$1</span>')
-                // Flags
-                .replace(/(\s-[a-zA-Z]+)/g, '<span class="syntax-number">$1</span>');
-        }
-        
-        return highlighted;
+        if (!code) return "";
+        return escapeHtml(code);
     }
 
     function copyCodeBlock(button) {
@@ -569,7 +482,24 @@
         // Get credentials from form inputs (they're auto-filled after key generation)
         const auroraKey = $("#compareAuroraKey")?.value || currentAuroraKey;
         const userId = $("#compareUserId")?.value || currentUserId;
-        
+        const openRouterKey = $("#compareOpenRouterKey")?.value?.trim();
+
+        // If OpenRouter key is filled in the field, sync it to the backend first
+        if (openRouterKey && userId) {
+            try {
+                await fetch(`${API_BASE}/apikey`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ user_id: userId, provider: "openrouter", api_key: openRouterKey })
+                });
+                await fetch(`${API_BASE}/apikey`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ user_id: userId, provider: "featherless", api_key: openRouterKey })
+                });
+            } catch(e) { /* silent — backend may already have it */ }
+        }
+
         if (!auroraKey) { 
             toast("Enter your Aurora key first"); 
             $("#compareAuroraKey")?.focus();
@@ -627,7 +557,7 @@
                     user_id: userId,
                     input: q,
                     provider: "openrouter",
-                    model: "openrouter/auto",
+                    model: "openai/gpt-oss-120b:free",
                     memory_scope: "user"
                 })
             });
@@ -735,6 +665,66 @@
     // ========================================================
     let memory = [];
 
+    function memoryHeaders() {
+        return {
+            "X-Api-Key": currentAuroraKey,
+            "Authorization": `Bearer ${currentAuroraKey}`,
+            "Content-Type": "application/json"
+        };
+    }
+
+    function normalizeMemoryText(value) {
+        return String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
+    }
+
+    function factTextFromStructured(item) {
+        const data = item.data || {};
+        if (data.text) return String(data.text);
+        if (data.type === "name") return `User's name is ${data.value}`;
+        if (data.type === "preference") return `User prefers ${data.value}`;
+        if (data.type === "dislike") return `User dislikes ${data.value}`;
+        if (data.type === "project") return `User is working on ${data.value}`;
+        if (data.type === "role") return `User is a ${data.value}`;
+        if (data.type === "company") return `User works at ${data.value}`;
+        if (data.type === "location") return `User is from ${data.value}`;
+        if (data.type === "technology") return `User uses ${data.value}`;
+        if (data.type === "goal") return `User wants to ${data.value}`;
+        if (data.value) return `User ${data.type || item.kind}: ${data.value}`;
+        return "";
+    }
+
+    async function persistMemory(item) {
+        const payload = {
+            user_id: currentUserId,
+            text: item.fact,
+            kind: item.tag || "note",
+            memory_scope: "user",
+            metadata: { source: item.source || "manual" }
+        };
+        const path = item.metadataId
+            ? `${API_BASE}/v1/memory/${encodeURIComponent(item.metadataId)}`
+            : `${API_BASE}/v1/memory`;
+        const response = await fetch(path, {
+            method: item.metadataId ? "PATCH" : "POST",
+            headers: memoryHeaders(),
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) throw new Error(await response.text());
+        const data = await response.json();
+        item.metadataId = data.metadata_id || item.metadataId;
+        item.source = "manual";
+        return data;
+    }
+
+    async function deleteMemory(item) {
+        if (!item.metadataId) return;
+        const response = await fetch(
+            `${API_BASE}/v1/memory/${encodeURIComponent(item.metadataId)}?user_id=${encodeURIComponent(currentUserId)}`,
+            { method: "DELETE", headers: memoryHeaders() }
+        );
+        if (!response.ok) throw new Error(await response.text());
+    }
+
     async function loadMemory() {
         if (!currentAuroraKey || !currentUserId) {
             console.log("Skipping memory load - no auth");
@@ -743,31 +733,46 @@
         try {
             const response = await fetch(`${API_BASE}/v1/memory/context`, {
                 method: "POST",
-                headers: {
-                    "X-Api-Key": currentAuroraKey,
-                    "Authorization": `Bearer ${currentAuroraKey}`,
-                    "Content-Type": "application/json"
-                },
+                headers: memoryHeaders(),
                 body: JSON.stringify({
                     user_id: currentUserId,
-                    query: "all facts",
+                    query: "preferences facts profile likes favorite color settings",
                     memory_scope: "user",
-                    top_k: 50
+                    top_k: 20,
+                    structured_limit: 50
                 })
             });
             if (response.ok) {
                 const memoryData = await response.json();
-                // Map structured_memories + retrieved_memories into display format
                 const structured = memoryData.structured_memories || [];
                 const retrieved = memoryData.retrieved_memories || [];
                 const seen = new Set();
                 memory = [];
-                retrieved.forEach((m, i) => {
-                    if (seen.has(m.text)) return;
-                    seen.add(m.text);
+                structured.forEach((item) => {
+                    const fact = factTextFromStructured(item);
+                    if (!fact) return;
+                    const key = normalizeMemoryText(fact);
+                    if (seen.has(key)) return;
+                    seen.add(key);
                     memory.push({
-                        id: i + 1,
-                        fact: m.text,
+                        id: item.id,
+                        metadataId: item.id,
+                        fact,
+                        tag: (item.data?.type || item.kind || "context").replace(/^fact_/, ""),
+                        source: item.data?.metadata?.source || (item.data?.original_text ? "conversation" : "manual"),
+                        learned: String(item.created_at || new Date().toISOString()).slice(0, 10),
+                        conf: 100
+                    });
+                });
+                retrieved.forEach((m, i) => {
+                    const fact = String(m.text || "").trim();
+                    if (!fact || m.metadata?.role === "user_fact") return;
+                    const key = normalizeMemoryText(fact);
+                    if (seen.has(key)) return;
+                    seen.add(key);
+                    memory.push({
+                        id: `vector-${m.id || i}`,
+                        fact,
                         tag: m.metadata?.fact_type || m.metadata?.kind || "context",
                         source: m.metadata?.role || "conversation",
                         learned: new Date().toISOString().slice(0, 10),
@@ -799,7 +804,7 @@
         }
         filtered.forEach(m => {
             const tr = document.createElement("tr");
-            tr.dataset.id = m.id;
+            tr.dataset.id = String(m.id);
             tr.innerHTML = `
                 <td><span class="fact-text">${escapeHtml(m.fact)}</span></td>
                 <td><span class="tag tag--muted">${m.tag}</span></td>
@@ -826,29 +831,46 @@
         return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
     }
 
-    $("#memoryTbody")?.addEventListener("click", (e) => {
+    $("#memoryTbody")?.addEventListener("click", async (e) => {
         const btn = e.target.closest("button[data-action]");
         if (!btn) return;
         const tr = btn.closest("tr");
-        const id = Number(tr.dataset.id);
+        const id = tr.dataset.id;
         const action = btn.getAttribute("data-action");
-        const item = memory.find(m => m.id === id);
+        const item = memory.find(m => String(m.id) === id);
         if (!item) return;
 
         if (action === "forget") {
-            memory = memory.filter(m => m.id !== id);
-            toast(`Fact forgotten`);
-            renderMemory();
+            try {
+                await deleteMemory(item);
+                memory = memory.filter(m => String(m.id) !== id);
+                toast(`Fact forgotten`);
+                renderMemory();
+            } catch (error) {
+                console.error("Failed to delete memory:", error);
+                toast("Could not delete memory");
+            }
         } else if (action === "edit") {
             const td = tr.querySelector("td:first-child");
             const current = item.fact;
             td.innerHTML = `<input class="fact-input" value="${escapeHtml(current)}" />`;
             const input = td.querySelector("input");
             input.focus(); input.select();
-            const save = () => {
+            let saved = false;
+            const save = async () => {
+                if (saved) return;
+                saved = true;
                 item.fact = input.value.trim() || current;
-                renderMemory();
-                toast("Fact updated");
+                try {
+                    await persistMemory(item);
+                    renderMemory();
+                    toast("Fact updated");
+                } catch (error) {
+                    console.error("Failed to update memory:", error);
+                    item.fact = current;
+                    renderMemory();
+                    toast("Could not update memory");
+                }
             };
             input.addEventListener("blur", save, { once: true });
             input.addEventListener("keydown", (ev) => {
@@ -859,11 +881,10 @@
     });
 
     $("#memoryAddBtn")?.addEventListener("click", () => {
-        const id = Math.max(0, ...memory.map(m => m.id)) + 1;
         memory.unshift({
-            id,
+            id: `local-${Date.now()}`,
             fact: "New fact — click edit to describe…",
-            tag: "context",
+            tag: "note",
             source: "manual",
             learned: new Date().toISOString().slice(0, 10),
             conf: 100,
@@ -1574,9 +1595,6 @@ const data: RunResponse = await res.json();`
         });
     });
 
-})();
-
-
 // ========================================================
 // DEMO ANIMATION
 // ========================================================
@@ -1853,3 +1871,5 @@ async function showDemoStep(container, step) {
         }, step.duration);
     });
 }
+
+})();

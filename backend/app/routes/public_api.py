@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import re
+import uuid
 from time import perf_counter
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.db.session import get_db
+from app.models import MemoryMetadata
 from app.schemas.memory import ContextMemoryRequest, ContextMemoryResponse, MemoryStoreRequest
+from app.schemas.memory import MemoryUpdateRequest
 from app.schemas.public_api import (
     CompareDelta,
     CompareMetrics,
@@ -142,6 +146,40 @@ def _score_efficiency(*, latency_ms: int, cost_usd: float, tool_count: int, memo
     return max(20, min(score, 98))
 
 
+def _is_code_prompt(user_input: str) -> bool:
+    normalized = user_input.lower()
+    return any(
+        keyword in normalized
+        for keyword in (
+            "code", "function", "script", "program", "class", "implement",
+            "write", "generate", "create", "python", "javascript",
+            "typescript", "java", "c++", "calculator", "add numbers",
+        )
+    )
+
+
+def _plain_raw_output(text: str) -> str:
+    text = text.strip()
+    text = re.sub(r"```[\w+#.-]*\n?", "", text)
+    text = text.replace("```", "")
+    text = re.sub(r"`([^`]+)`", r"\1", text)
+    text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
+    text = re.sub(r"\*([^*]+)\*", r"\1", text)
+    text = re.sub(r"^#{1,6}\s+", "", text, flags=re.MULTILINE)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def _raw_baseline_output(*, user_input: str, model_output: str) -> str:
+    if not _is_code_prompt(user_input):
+        return _plain_raw_output(model_output)
+
+    return (
+        "Basic idea: write a small function for the task and call it with the inputs. "
+        "It does not include full structure, validation, docstrings, tests, or production-ready handling."
+    )
+
+
 def _to_context_response(snapshot: dict) -> ContextMemoryResponse:
     from app.schemas.memory import ContextMessage, MemoryHit, StructuredMemoryItem
 
@@ -237,15 +275,21 @@ async def _compare_public_request(
     raw_messages = [
         {
             "role": "system",
-            "content": "You are a basic AI. Answer briefly. Keep it simple.",
+            "content": (
+                "You are a basic raw model baseline. Answer directly and briefly in plain text only. "
+                "Do not use markdown, code blocks, syntax highlighting, headings, or structured formatting. "
+                "For coding requests, do not write a complete runnable program and do not include validation, "
+                "docstrings, tests, CLI handling, or production structure. Give only a rough idea."
+            ),
         },
         {"role": "user", "content": payload.input},
     ]
 
     try:
         raw_started = perf_counter()
-        raw_result = await raw_llm.generate(model=selected_model, messages=raw_messages, temperature=0.9)  # Very high temp = less precise, more random
+        raw_result = await raw_llm.generate(model=selected_model, messages=raw_messages, temperature=0.95)
         raw_latency_ms = int((perf_counter() - raw_started) * 1000)
+        raw_output = _raw_baseline_output(user_input=payload.input, model_output=raw_result.content)
     except LLMError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
@@ -278,7 +322,7 @@ async def _compare_public_request(
         title="Raw Model API",
         provider=selected_provider,
         model=selected_model,
-        output=raw_result.content.strip(),
+        output=raw_output,
         metrics=CompareMetrics(
             latency_ms=raw_latency_ms,
             estimated_cost_usd=raw_cost,
@@ -481,6 +525,62 @@ async def public_memory_store(
     }
 
 
+@router.patch("/memory/{memory_id}", response_model=dict)
+async def public_memory_update(
+    memory_id: str,
+    payload: MemoryUpdateRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _: object = Depends(require_aurora_auth),
+) -> dict:
+    row = await db.get(MemoryMetadata, memory_id)
+    if row is None or str(row.user_id) != str(payload.user_id):
+        raise HTTPException(status_code=404, detail="Memory item not found.")
+
+    settings = get_settings()
+    mem = MemoryEngine(
+        db=db,
+        vector_store=request.app.state.vector_store,
+        short_term_max_messages=settings.short_term_max_messages,
+    )
+    vec_id = await mem.vector_store_text(
+        user_id=payload.user_id,
+        conversation_id=row.conversation_id,
+        text=payload.text,
+        memory_scope=payload.memory_scope,
+        context_key=payload.context_key,
+        metadata={"kind": payload.kind, **(payload.metadata or {})},
+    )
+    row.kind = payload.kind
+    row.memory_scope = payload.memory_scope
+    row.context_key = payload.context_key
+    row.data = {"text": payload.text, "vector_id": vec_id, "metadata": payload.metadata}
+    await db.commit()
+    await db.refresh(row)
+    return {
+        "updated": True,
+        "vector_id": vec_id,
+        "metadata_id": str(row.id),
+        "memory_scope": row.memory_scope,
+        "context_key": row.context_key,
+    }
+
+
+@router.delete("/memory/{memory_id}", response_model=dict)
+async def public_memory_delete(
+    memory_id: str,
+    user_id: uuid.UUID = Query(...),
+    db: AsyncSession = Depends(get_db),
+    _: object = Depends(require_aurora_auth),
+) -> dict:
+    row = await db.get(MemoryMetadata, memory_id)
+    if row is None or str(row.user_id) != str(user_id):
+        raise HTTPException(status_code=404, detail="Memory item not found.")
+    await db.delete(row)
+    await db.commit()
+    return {"deleted": True, "metadata_id": memory_id}
+
+
 @router.post("/memory/context", response_model=ContextMemoryResponse)
 async def public_memory_context(
     payload: ContextMemoryRequest,
@@ -562,6 +662,27 @@ async def public_memory_alias(
     _: object = Depends(require_aurora_auth),
 ) -> dict:
     return await public_memory_store(payload=payload, request=request, db=db)
+
+
+@public_router.patch("/memory/{memory_id}", response_model=dict)
+async def public_memory_update_alias(
+    memory_id: str,
+    payload: MemoryUpdateRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _: object = Depends(require_aurora_auth),
+) -> dict:
+    return await public_memory_update(memory_id=memory_id, payload=payload, request=request, db=db)
+
+
+@public_router.delete("/memory/{memory_id}", response_model=dict)
+async def public_memory_delete_alias(
+    memory_id: str,
+    user_id: uuid.UUID = Query(...),
+    db: AsyncSession = Depends(get_db),
+    _: object = Depends(require_aurora_auth),
+) -> dict:
+    return await public_memory_delete(memory_id=memory_id, user_id=user_id, db=db)
 
 
 @public_router.post("/memory/context", response_model=ContextMemoryResponse)

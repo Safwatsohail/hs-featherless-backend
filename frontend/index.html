@@ -431,12 +431,11 @@
                                 <div class="select" data-testid="compare-model-select">
                                     <span class="mono-dim">MODEL</span>
                                     <select id="compareModel">
-                                        <option value="openrouter/auto">openrouter/auto</option>
-                                        <option>DeepSeek-V3.2</option>
-                                        <option>Kimi-K2.5</option>
-                                        <option>GLM-5</option>
-                                        <option>Qwen3-Coder-30B</option>
-                                        <option>Mistral-Small-3.2-24B</option>
+                                        <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (Free)</option>
+                                        <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B (Free)</option>
+                                        <option value="qwen/qwen3-coder:free">Qwen3 Coder (Free)</option>
+                                        <option value="nousresearch/hermes-3-llama-3.1-405b:free">Hermes 3 405B (Free)</option>
+                                        <option value="google/gemma-4-31b-it:free">Gemma 4 31B (Free)</option>
                                     </select>
                                 </div>
                             </div>
@@ -451,11 +450,11 @@
                                 </div>
                                 <div class="field">
                                     <label class="field__label">USER ID</label>
-                                    <input type="text" id="compareUserId" placeholder="user-id" value="" />
+                                    <input type="text" id="compareUserId" placeholder="user-id" value="00000000-0000-0000-0000-000000000001" />
                                 </div>
                                 <div class="field">
                                     <label class="field__label">OPENROUTER KEY</label>
-                                    <input type="text" id="compareOpenRouterKey" placeholder="sk-or-v1-..." value="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" />
+                                    <input type="text" id="compareOpenRouterKey" placeholder="sk-or-v1-..." value="" />
                                 </div>
                             </div>
                         </div>
@@ -768,5 +767,4 @@
         <script src="/main.js"></script>
     </body>
 </html>
-
 

@@ -186,7 +186,7 @@ class LLMClient:
         temperature: float,
         provider_name: str,
     ) -> dict[str, Any]:
-        payload = {"model": model, "messages": messages, "temperature": temperature}
+        payload = {"model": model, "messages": messages, "temperature": temperature, "max_tokens": 2048}
         headers = {"Authorization": f"Bearer {api_key}"}
         if provider_name == "openrouter":
             headers["HTTP-Referer"] = "https://localhost"

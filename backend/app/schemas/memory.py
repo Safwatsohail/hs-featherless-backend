@@ -15,6 +15,15 @@ class MemoryStoreRequest(BaseModel):
     context_key: str | None = Field(default=None, min_length=1, max_length=120)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
+
+class MemoryUpdateRequest(BaseModel):
+    user_id: uuid.UUID
+    text: str = Field(min_length=1)
+    kind: str = Field(default="note", min_length=1)
+    memory_scope: Literal["conversation", "user", "workspace", "global"] = "user"
+    context_key: str | None = Field(default=None, min_length=1, max_length=120)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
 class MemoryHit(BaseModel):
     id: str
     text: str
