@@ -171,13 +171,33 @@ def _plain_raw_output(text: str) -> str:
 
 
 def _raw_baseline_output(*, user_input: str, model_output: str) -> str:
+    # For non-code prompts, keep the plain text formatting
     if not _is_code_prompt(user_input):
         return _plain_raw_output(model_output)
-
-    return (
-        "Basic idea: write a small function for the task and call it with the inputs. "
-        "It does not include full structure, validation, docstrings, tests, or production-ready handling."
-    )
+    
+    # For code prompts, convert code blocks to paragraph format
+    text = model_output.strip()
+    
+    # Remove excessive markdown
+    text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
+    text = re.sub(r"\*([^*]+)\*", r"\1", text)
+    text = re.sub(r"^#{1,6}\s+", "", text, flags=re.MULTILINE)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    
+    # Convert code blocks to paragraph format
+    def code_to_paragraph(match):
+        code_content = match.group(2) if len(match.groups()) >= 2 else match.group(1)
+        # Remove indentation and convert to single paragraph
+        lines = [line.strip() for line in code_content.split('\n') if line.strip()]
+        return "Here's the code: " + " ".join(lines) + " "
+    
+    # Replace code blocks with paragraph format
+    text = re.sub(r"```[\w]*\n?(.*?)```", code_to_paragraph, text, flags=re.DOTALL)
+    
+    # Clean up any remaining backticks
+    text = text.replace("`", "")
+    
+    return text.strip()
 
 
 def _to_context_response(snapshot: dict) -> ContextMemoryResponse:
@@ -276,10 +296,10 @@ async def _compare_public_request(
         {
             "role": "system",
             "content": (
-                "You are a basic raw model baseline. Answer directly and briefly in plain text only. "
-                "Do not use markdown, code blocks, syntax highlighting, headings, or structured formatting. "
-                "For coding requests, do not write a complete runnable program and do not include validation, "
-                "docstrings, tests, CLI handling, or production structure. Give only a rough idea."
+                "You are a helpful assistant that provides functional responses. Answer clearly and directly. "
+                "For coding requests, provide working code that solves the problem, but keep it simple - "
+                "no extensive error handling, validation, docstrings, or production features. "
+                "Focus on the core functionality. Use basic formatting but avoid complex structure."
             ),
         },
         {"role": "user", "content": payload.input},

@@ -517,8 +517,8 @@
         const intent = detectIntent(q);
 
         // reset UI
-        $("#rawBody").innerHTML = `<div class="pane__empty"><span class="mono-dim">// ${model} · thinking…</span></div>`;
-        $("#enhBody").innerHTML = `<div class="pane__empty"><span class="mono-dim">// enhanced · thinking…</span></div>`;
+        $("#rawBody").innerHTML = `<div class="pane__empty"><span class="mono-dim">// enhanced · thinking…</span></div>`;
+        $("#enhBody").innerHTML = `<div class="pane__empty"><span class="mono-dim">// ${model} · thinking…</span></div>`;
         $("#rawLatency").textContent = "…";
         $("#rawTps").textContent = "…";
         $("#rawTokens").textContent = "…";
@@ -526,11 +526,11 @@
         $("#enhTools").textContent = "…";
         $("#enhIntent").textContent = "…";
 
-        // Show thought process on enhanced side while waiting
+        // Show thought process on enhanced side (left pane) while waiting
         const thoughtBox = document.createElement("div");
         thoughtBox.className = "thought";
-        $("#enhBody").innerHTML = "";
-        $("#enhBody").appendChild(thoughtBox);
+        $("#rawBody").innerHTML = "";
+        $("#rawBody").appendChild(thoughtBox);
 
         const steps = THOUGHTS_BY_INTENT[intent] || THOUGHTS_BY_INTENT.analysis;
         const thoughtPromise = (async () => {
