@@ -724,6 +724,20 @@
                                 <div class="docs-snippet" id="docsSnippetSkill"></div>
                             </section>
 
+                            <!-- Tools -->
+                            <section class="docs-section">
+                                <h2 class="docs-section__title">Execute Tools</h2>
+                                <p class="docs-section__sub">POST /v1/tools/{name} — run individual tools with custom input.</p>
+                                <div class="docs-snippet" id="docsSnippetTools"></div>
+                            </section>
+
+                            <!-- Error Handling -->
+                            <section class="docs-section">
+                                <h2 class="docs-section__title">Error Handling</h2>
+                                <p class="docs-section__sub">All errors return structured JSON with error codes and descriptions.</p>
+                                <div class="docs-snippet" id="docsSnippetErrors"></div>
+                            </section>
+
                             <!-- Endpoints table -->
                             <section class="docs-section">
                                 <h2 class="docs-section__title">All Endpoints</h2>
@@ -734,7 +748,11 @@
                                             <tr><td><span class="tag">POST</span></td><td><code>/v1/run</code></td><td>Enhanced chat with skills + memory + tools</td></tr>
                                             <tr><td><span class="tag">POST</span></td><td><code>/v1/compare</code></td><td>A/B compare raw vs enhanced</td></tr>
                                             <tr><td><span class="tag">POST</span></td><td><code>/v1/skills/{name}</code></td><td>Invoke a specific skill</td></tr>
+                                            <tr><td><span class="tag">POST</span></td><td><code>/v1/tools/{name}</code></td><td>Execute individual tools</td></tr>
                                             <tr><td><span class="tag tag--muted">GET</span></td><td><code>/v1/skills</code></td><td>List all available skills</td></tr>
+                                            <tr><td><span class="tag">POST</span></td><td><code>/v1/memory</code></td><td>Store memory facts</td></tr>
+                                            <tr><td><span class="tag">POST</span></td><td><code>/v1/memory/context</code></td><td>Retrieve memory context</td></tr>
+                                            <tr><td><span class="tag">DELETE</span></td><td><code>/v1/memory/{id}</code></td><td>Delete specific memory</td></tr>
                                             <tr><td><span class="tag">POST</span></td><td><code>/v1/memory</code></td><td>Store a memory fact</td></tr>
                                             <tr><td><span class="tag">POST</span></td><td><code>/v1/memory/context</code></td><td>Retrieve memory context</td></tr>
                                             <tr><td><span class="tag">POST</span></td><td><code>/v1/tools/{name}</code></td><td>Execute a specific tool</td></tr>

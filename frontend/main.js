@@ -1317,7 +1317,7 @@ r = requests.post(f"{API_BASE}/v1/memory/context", headers=headers, json={
 })
 for m in r.json()["retrieved_memories"]:
     print(m["text"], "score:", m["score"])`,
-            skill: `# Force a specific skill
+        skill: `# Force a specific skill
 r = requests.post(f"{API_BASE}/v1/skills/deep_research", headers=headers, json={
     "user_id": USER_ID,
     "input": "Compare GPT-4o vs Claude 3.5 Sonnet benchmarks"
@@ -1325,9 +1325,9 @@ r = requests.post(f"{API_BASE}/v1/skills/deep_research", headers=headers, json={
 data = r.json()
 print(data["output"])
 print("Tools used:", [t["name"] for t in data["tool_calls"]])`
-        },
-        javascript: {
-            quickstart: `const API_BASE = "http://localhost:8000";
+    },
+    javascript: {
+        quickstart: `const API_BASE = "http://localhost:8000";
 const AURORA_KEY = "aurora_live_YOUR_KEY";
 const USER_ID = "YOUR_USER_ID";
 
@@ -1335,26 +1335,14 @@ const headers = {
   "Authorization": \`Bearer \${AURORA_KEY}\`,
   "Content-Type": "application/json"
 };`,
-            chat: `async function chat(message) {
+        chat: `async function chat(message) {
   const res = await fetch(\`\${API_BASE}/v1/run\`, {
     method: "POST", headers,
     body: JSON.stringify({
       user_id: USER_ID,
       input: message,
       memory_scope: "user",
-      provider: "openrouter",
-      model: "openrouter/auto"
     })
-  });
-  const data = await res.json();
-  console.log("Skill:", data.skill);
-  console.log("Tools:", data.tool_calls.map(t => t.name));
-  console.log("Memory hits:", data.metrics.memory_hits);
-  return data.output;
-}
-
-await chat("What are the latest React 19 features?");`,
-            compare: `async function compare(prompt) {
   const res = await fetch(\`\${API_BASE}/v1/compare\`, {
     method: "POST", headers,
     body: JSON.stringify({
@@ -1369,7 +1357,7 @@ await chat("What are the latest React 19 features?");`,
   console.log("Latency gap:", delta.latency_gap_ms + "ms");
   console.log("Skill:", tuned.skill);
 }`,
-            memory: `// Store — shared across all keys for same user_id
+        memory: `// Store — shared across all keys for same user_id
 await fetch(\`\${API_BASE}/v1/memory\`, {
   method: "POST", headers,
   body: JSON.stringify({
@@ -1390,7 +1378,7 @@ const res = await fetch(\`\${API_BASE}/v1/memory/context\`, {
   })
 });
 const { retrieved_memories } = await res.json();`,
-            skill: `// Invoke research skill with web search
+        skill: `// Invoke research skill with web search
 const res = await fetch(\`\${API_BASE}/v1/skills/research\`, {
   method: "POST", headers,
   body: JSON.stringify({
@@ -1401,15 +1389,21 @@ const res = await fetch(\`\${API_BASE}/v1/skills/research\`, {
 const data = await res.json();
 console.log(data.output);
 console.log("Tools:", data.tool_calls);`
-        },
-        typescript: {
-            quickstart: `const API_BASE = "http://localhost:8000";
-const AURORA_KEY = "aurora_live_YOUR_KEY";
-const USER_ID = "YOUR_USER_ID";
+    },
+    typescript: {
+        quickstart: `// TypeScript interface definitions
+interface APIConfig {
+    apiBase: string;
+    auroraKey: string;
+    userId: string;
+}
 
 interface RunResponse {
-  conversation_id: string;
-  skill: string;
+    conversation_id: string;
+    skill: string;
+    output: string;
+    tool_calls: { name: string; input: object }[];
+    metrics: { memory_hits: number; tool_count: number; usage: object };
   output: string;
   tool_calls: { name: string; input: object }[];
   metrics: { memory_hits: number; tool_count: number; usage: object };
@@ -1458,92 +1452,63 @@ await fetch(\`\${API_BASE}/v1/memory\`, {
   })
 });`,
             skill: `// Invoke a specific skill
-const res = await fetch(\`\${API_BASE}/v1/skills/code_assistant\`, {
-  method: "POST",
-  headers: { "Authorization": \`Bearer \${AURORA_KEY}\`, "Content-Type": "application/json" },
   body: JSON.stringify({ user_id: USER_ID, input: "Review this TypeScript function for bugs" })
 });
-const data: RunResponse = await res.json();`
-        }
-    };
+const data = await res.json();
+console.log(data);
+}
 
-    function renderDocsSnippets(lang) {
-        console.log("renderDocsSnippets called with lang:", lang);
-        console.log("currentAuroraKey:", currentAuroraKey ? currentAuroraKey.slice(0, 20) + "..." : "null");
-        console.log("currentUserId:", currentUserId);
-        
-        const snippets = DOCS_SNIPPETS[lang] || DOCS_SNIPPETS.curl;
-        const ids = ["quickstart","chat","compare","memory","skill"];
-        ids.forEach(id => {
-            const el = $(`#docsSnippet${id.charAt(0).toUpperCase()+id.slice(1)}`);
-            console.log(`Element for ${id}:`, el ? "found" : "NOT FOUND");
-            if (!el) return;
-            const code = (snippets[id] || "").replace(
-                /YOUR_KEY/g, currentAuroraKey || "YOUR_AURORA_KEY_HERE"
-            ).replace(/YOUR_USER_ID/g, currentUserId || "YOUR_USER_ID_HERE");
-            el.innerHTML = `
-                <div class="docs-snippet__header">
-                    <span class="docs-snippet__lang">${lang}</span>
-                    <button class="docs-snippet__copy" onclick="(function(b){
-                        navigator.clipboard.writeText(b.closest('.docs-snippet').querySelector('pre').textContent).then(()=>{b.textContent='✓ Copied';setTimeout(()=>b.textContent='Copy',1500)})
-                    })(this)">Copy</button>
-                </div>
-                <pre>${syntaxHL(code, lang)}</pre>`;
-            console.log(`Rendered snippet for ${id}, length:`, el.innerHTML.length);
-        });
+function renderDocsSnippets(lang) {
+  const snippets = DOCS_SNIPPETS[lang] || DOCS_SNIPPETS.curl;
+  const ids = ["quickstart","chat","compare","memory","skill","tools","errors"];
+  ids.forEach(id => {
+    const el = $(`#docsSnippet${id.charAt(0).toUpperCase()+id.slice(1)}`);
+    console.log(`Element for ${id}:`, el ? "found" : "NOT FOUND");
+    if (!el) return;
+    const code = (snippets[id] || "").replace(
+      /\b(AURORA_KEY|USER_ID|API_BASE)\b/g,
+      currentAuroraKey && currentAuroraKey.slice(0, 20) + "..." || "aurora_live_YOUR_KEY"
+    );
+    el.innerHTML = `<pre><code>${escapeHtml(code)}</code></pre>`;
+  });
+}
+
+function syntaxHL(code, lang) {
+  const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  let s = esc(code);
+  if (lang === "curl") {
+    s = s.replace(/(#[^\n]*)/g, '<span class="sc">$1</span>');
+    s = s.replace(/("(?:[^"\\]|\\.)*")/g, '<span class="ss">$1</span>');
+    s = s.replace(/\b(curl|POST|GET|PUT|DELETE)\b/g, '<span class="sk">$1</span>');
+    s = s.replace(/(-[A-Za-z]+)/g, '<span class="sp">$1</span>');
+  } else if (lang === "python") {
     }
+    return s;
+}
 
-    function syntaxHL(code, lang) {
-        const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-        let s = esc(code);
-        if (lang === "curl") {
-            s = s.replace(/(#[^\n]*)/g, '<span class="sc">$1</span>');
-            s = s.replace(/("(?:[^"\\]|\\.)*")/g, '<span class="ss">$1</span>');
-            s = s.replace(/\b(curl|POST|GET|PUT|DELETE)\b/g, '<span class="sk">$1</span>');
-            s = s.replace(/(-[A-Za-z]+)/g, '<span class="sp">$1</span>');
-        } else if (lang === "python") {
-            s = s.replace(/(#[^\n]*)/g, '<span class="sc">$1</span>');
-            s = s.replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, '<span class="ss">$1</span>');
-            s = s.replace(/\b(def|class|import|from|return|if|else|elif|for|while|async|await|with|as|print|True|False|None)\b/g, '<span class="sk">$1</span>');
-            s = s.replace(/\b(\d+)\b/g, '<span class="sn">$1</span>');
-        } else if (lang === "javascript" || lang === "typescript") {
-            s = s.replace(/(\/\/[^\n]*)/g, '<span class="sc">$1</span>');
-            s = s.replace(/(`(?:[^`\\]|\\.)*`|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, '<span class="ss">$1</span>');
-            s = s.replace(/\b(const|let|var|function|async|await|return|interface|type|import|export|new|class)\b/g, '<span class="sk">$1</span>');
-            s = s.replace(/\b(\d+)\b/g, '<span class="sn">$1</span>');
-        }
-        return s;
-    }
+$("#docsLang")?.addEventListener("change", (e) => renderDocsSnippets(e.target.value));
 
-    $("#docsLang")?.addEventListener("change", (e) => renderDocsSnippets(e.target.value));
-
-    // ========================================================
-    // COMPARE — real tool preview rendering
-    // ========================================================
-    function renderToolPreview(toolCalls, toolResults, container) {
-        if (!toolCalls || toolCalls.length === 0) return;
-        toolCalls.forEach((tc, i) => {
-            const result = toolResults?.[i];
-            const preview = document.createElement("div");
-            preview.className = "tool-preview";
-            const outputText = result?.output
-                ? String(result.output).slice(0, 400)
-                : "running…";
-            preview.innerHTML = `
-                <div class="tool-preview__head">
-                    <span class="dot"></span>
-                    <span>TOOL · ${tc.name}</span>
-                    <span style="margin-left:auto;color:#666">${JSON.stringify(tc.input || {}).slice(0,60)}</span>
-                </div>
-                <div class="tool-preview__body">${escapeHtml(outputText)}</div>
-                ${result ? `<div class="tool-preview__result">✓ completed · ${String(result.output||"").length} chars</div>` : ""}`;
-            container.appendChild(preview);
-        });
-    }
-
-    // ========================================================
-    // COMPARE — accurate live stats from API response
-    // ========================================================
+// ========================================================
+// COMPARE — real tool preview rendering
+// ========================================================
+function renderToolPreview(toolCalls, toolResults, container) {
+    if (!toolCalls || toolCalls.length === 0) return;
+    toolCalls.forEach((tc, i) => {
+        const result = toolResults?.[i];
+        const preview = document.createElement("div");
+        preview.className = "tool-preview";
+        const outputText = result?.output
+            ? String(result.output).slice(0, 400)
+            : "running…";
+        preview.innerHTML = `
+            <div class="tool-preview__head">
+                <span class="dot"></span>
+                <span>TOOL · ${tc.name}</span>
+                <span style="margin-left:auto;color:#666">${JSON.stringify(tc.input || {}).slice(0, 60)}</span>
+            </div>
+            <div class="tool-preview__body">${escapeHtml(outputText)}</div>
+            ${result ? `<div class="tool-preview__result">✓ completed · ${String(result.output || "").length} chars</div>` : ""}`;
+        container.appendChild(preview);
     function updateCompareStats(data) {
         const baseline = data.baseline;
         const tuned = data.tuned;
