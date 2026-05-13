@@ -14,7 +14,7 @@ curl -X POST http://localhost:8000/apikey \
   -d '{
     "user_id": "your-device-user-id",
     "provider": "openrouter",
-    "api_key": "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"
+    "api_key": "YOUR_OPENROUTER_API_KEY"
   }'
 ```
 
