@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.db.session import get_db
 from app.schemas.memory import (
+    ContextMemoryRequest,
     ContextMemoryResponse,
     ContextMessage,
     MemoryHit,
@@ -91,17 +92,10 @@ async def retrieve_memory(
     )
 
 
-@router.get("/context", response_model=ContextMemoryResponse)
+@router.post("/context", response_model=ContextMemoryResponse)
 async def retrieve_context_memory(
+    payload: ContextMemoryRequest,
     request: Request,
-    user_id: uuid.UUID = Query(...),
-    conversation_id: uuid.UUID | None = Query(default=None),
-    query: str | None = Query(default=None),
-    top_k: int = Query(5, ge=1, le=20),
-    message_limit: int = Query(10, ge=1, le=50),
-    structured_limit: int = Query(10, ge=1, le=50),
-    memory_scope: str = Query("user"),
-    context_key: str | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
 ) -> ContextMemoryResponse:
     settings = get_settings()
@@ -110,15 +104,16 @@ async def retrieve_context_memory(
         vector_store=request.app.state.vector_store,
         short_term_max_messages=settings.short_term_max_messages,
     )
+    
     snapshot = await mem.get_context_snapshot(
-        user_id=user_id,
-        conversation_id=conversation_id,
-        query=query,
-        top_k=top_k,
-        message_limit=message_limit,
-        structured_limit=structured_limit,
-        memory_scope=memory_scope,
-        context_key=context_key,
+        user_id=payload.user_id,
+        conversation_id=payload.conversation_id,
+        query=payload.query,
+        top_k=payload.top_k,
+        message_limit=payload.message_limit,
+        structured_limit=payload.structured_limit,
+        memory_scope=payload.memory_scope,
+        context_key=payload.context_key,
     )
     return ContextMemoryResponse(
         memory_scope=snapshot["memory_scope"],

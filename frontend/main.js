@@ -11,6 +11,64 @@
     let currentUserId = null; // User must sign up/sign in
     let currentAuroraKey = null; // Generated after auth
 
+    // ---------- Device-based User ID Detection ----------
+    function generateUUID() {
+        // Generate a proper RFC 4122 v4 UUID
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+    
+    function getOrCreateDeviceUserId() {
+        const STORAGE_KEY = "hs_device_user_id";
+        let deviceUserId = localStorage.getItem(STORAGE_KEY);
+        
+        if (!deviceUserId) {
+            // Generate a unique device ID based on browser fingerprint
+            const fingerprint = [
+                navigator.userAgent,
+                navigator.language,
+                new Date().getTimezoneOffset(),
+                screen.width + 'x' + screen.height,
+                navigator.hardwareConcurrency || 'unknown'
+            ].join('|');
+            
+            // Hash the fingerprint to seed the UUID generation
+            let hash = 0;
+            for (let i = 0; i < fingerprint.length; i++) {
+                const char = fingerprint.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // Convert to 32bit integer
+            }
+            
+            // Use hash to seed random for deterministic UUID
+            const seed = Math.abs(hash);
+            const seededRandom = function() {
+                const x = Math.sin(seed++) * 10000;
+                return x - Math.floor(x);
+            };
+            
+            // Generate UUID with seeded randomness for device consistency
+            deviceUserId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = seededRandom() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+            
+            localStorage.setItem(STORAGE_KEY, deviceUserId);
+            console.log("✓ Generated new device user ID:", deviceUserId);
+        } else {
+            console.log("✓ Using existing device user ID:", deviceUserId);
+        }
+        
+        return deviceUserId;
+    }
+    
+    // Initialize device user ID on page load
+    currentUserId = getOrCreateDeviceUserId();
+
     // ---------- small helpers ----------
     const $  = (s, r = document) => r.querySelector(s);
     const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -146,29 +204,14 @@
             $("#authForm input[type='email']")?.focus();
             return;
         }
-        // Generate a deterministic UUID from email using a simple hash
-        // This ensures the same email always gets the same UUID
-        function emailToUUID(email) {
-            // Simple hash function to convert email to UUID
-            let hash = 0;
-            for (let i = 0; i < email.length; i++) {
-                hash = ((hash << 5) - hash) + email.charCodeAt(i);
-                hash = hash & hash; // Convert to 32bit integer
-            }
-            // Convert hash to hex and pad to create UUID format
-            const hex = Math.abs(hash).toString(16).padStart(8, '0');
-            // Create a valid UUID v4 format
-            return `${hex.slice(0,8)}-${hex.slice(0,4)}-4${hex.slice(0,3)}-a${hex.slice(0,3)}-${hex.slice(0,12).padEnd(12, '0')}`;
-        }
-        currentUserId = emailToUUID(email.toLowerCase());
+        // Use the device-based user ID (already set on page load)
         toast(`Welcome ${email}! Set up your API key next`);
         go("onboarding");
     }
     $("#authForm")?.addEventListener("submit", (e) => { e.preventDefault(); proceedFromAuth(); });
     $("#authSubmit")?.addEventListener("click", (e) => { e.preventDefault(); proceedFromAuth(); });
     $("#authSsoBtn")?.addEventListener("click", () => { 
-        // Generate a demo user ID for SSO
-        currentUserId = "00000000-0000-0000-0000-000000000001";
+        // Use the device-based user ID (already set on page load)
         toast("SSO · visual prototype"); 
         go("onboarding"); 
     });
@@ -1194,24 +1237,46 @@ export async function run(params, ctx) {
 curl -X POST http://localhost:8000/apikey \\
   -H "Content-Type: application/json" \\
   -d '{
-    "user_id": "YOUR_USER_ID",
+    "user_id": "YOUR_DEVICE_USER_ID",
     "provider": "openrouter",
-    "api_key": "sk-or-v1-..."
+    "api_key": "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"
   }'
 
 # Generate your Aurora enhanced key
 curl -X POST http://localhost:8000/auth/issue-key \\
   -H "Content-Type: application/json" \\
   -d '{
-    "user_id": "YOUR_USER_ID",
+    "user_id": "YOUR_DEVICE_USER_ID",
     "name": "My Key",
     "scopes": ["chat","memory","tools","skills"]
+  }'`,
+            project: `# Standalone project - use Aurora key from dashboard
+# 1. Chat with memory and tools
+curl -X POST http://localhost:8000/v1/run \\
+  -H "Authorization: Bearer aurora_live_YOUR_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "user_id": "YOUR_DEVICE_USER_ID",
+    "input": "My name is Safi. What programming language should I learn?",
+    "memory_scope": "user",
+    "provider": "openrouter",
+    "model": "openrouter/auto"
+  }'
+
+# 2. Get stored facts
+curl -X POST http://localhost:8000/v1/memory/context \\
+  -H "Authorization: Bearer aurora_live_YOUR_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "user_id": "YOUR_DEVICE_USER_ID",
+    "query": "name preferences",
+    "memory_scope": "user"
   }'`,
             chat: `curl -X POST http://localhost:8000/v1/run \\
   -H "Authorization: Bearer aurora_live_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "user_id": "YOUR_USER_ID",
+    "user_id": "YOUR_DEVICE_USER_ID",
     "input": "Debug my Python API performance",
     "memory_scope": "user",
     "provider": "openrouter",
@@ -1221,7 +1286,7 @@ curl -X POST http://localhost:8000/auth/issue-key \\
   -H "Authorization: Bearer aurora_live_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "user_id": "YOUR_USER_ID",
+    "user_id": "YOUR_DEVICE_USER_ID",
     "input": "What are the latest React 19 features?",
     "provider": "openrouter",
     "model": "openrouter/auto",
@@ -1232,7 +1297,7 @@ curl -X POST http://localhost:8000/v1/memory \\
   -H "Authorization: Bearer aurora_live_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "user_id": "YOUR_USER_ID",
+    "user_id": "YOUR_DEVICE_USER_ID",
     "text": "User prefers TypeScript over JavaScript",
     "kind": "preference",
     "memory_scope": "user"
@@ -1243,7 +1308,7 @@ curl -X POST http://localhost:8000/v1/memory/context \\
   -H "Authorization: Bearer aurora_live_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "user_id": "YOUR_USER_ID",
+    "user_id": "YOUR_DEVICE_USER_ID",
     "query": "language preferences",
     "memory_scope": "user"
   }'`,
@@ -1252,21 +1317,60 @@ curl -X POST http://localhost:8000/v1/skills/research \\
   -H "Authorization: Bearer aurora_live_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "user_id": "YOUR_USER_ID",
+    "user_id": "YOUR_DEVICE_USER_ID",
     "input": "Latest AI developments in 2025"
   }'`
         },
         python: {
-            quickstart: `import requests
+            quickstart: `#!/usr/bin/env python3
+import requests
 
 API_BASE = "http://localhost:8000"
 AURORA_KEY = "aurora_live_YOUR_KEY"
-USER_ID = "YOUR_USER_ID"
+USER_ID = "YOUR_DEVICE_USER_ID"
 
 headers = {
     "Authorization": f"Bearer {AURORA_KEY}",
     "Content-Type": "application/json"
 }`,
+            project: `#!/usr/bin/env python3
+# Standalone project - use Aurora key from dashboard
+import requests
+
+API_BASE = "http://localhost:8000"
+AURORA_KEY = "aurora_live_YOUR_KEY_HERE"
+USER_ID = "YOUR_DEVICE_USER_ID"
+
+headers = {"Authorization": f"Bearer {AURORA_KEY}", "Content-Type": "application/json"}
+
+# Chat with memory and tools
+print("🚀 Sending message...")
+r = requests.post(f"{API_BASE}/v1/run", headers=headers, json={
+    "user_id": USER_ID,
+    "input": "My name is Safi. What programming language should I learn?",
+    "memory_scope": "user",
+    "provider": "openrouter",
+    "model": "openrouter/auto"
+})
+data = r.json()
+print(f"✓ Response: {data['output'][:150]}...")
+print(f"✓ Skill: {data['skill']}")
+print(f"✓ Memory hits: {data['metrics']['memory_hits']}")
+
+# Get stored facts
+print("\\n📚 Retrieving memory...")
+r = requests.post(f"{API_BASE}/v1/memory/context", headers=headers, json={
+    "user_id": USER_ID,
+    "query": "name preferences",
+    "memory_scope": "user"
+})
+facts = r.json()["structured_memories"]
+print(f"✓ Found {len(facts)} facts")
+for fact in facts:
+    if fact["kind"].startswith("fact_"):
+        print(f"  - {fact['kind']}: {fact['data'].get('value')}")
+
+print("\\n✅ Done!")`,
             chat: `def chat(message, skill=None):
     payload = {
         "user_id": USER_ID,
@@ -1317,7 +1421,7 @@ r = requests.post(f"{API_BASE}/v1/memory/context", headers=headers, json={
 })
 for m in r.json()["retrieved_memories"]:
     print(m["text"], "score:", m["score"])`,
-        skill: `# Force a specific skill
+            skill: `# Force a specific skill
 r = requests.post(f"{API_BASE}/v1/skills/deep_research", headers=headers, json={
     "user_id": USER_ID,
     "input": "Compare GPT-4o vs Claude 3.5 Sonnet benchmarks"
@@ -1325,24 +1429,98 @@ r = requests.post(f"{API_BASE}/v1/skills/deep_research", headers=headers, json={
 data = r.json()
 print(data["output"])
 print("Tools used:", [t["name"] for t in data["tool_calls"]])`
-    },
-    javascript: {
-        quickstart: `const API_BASE = "http://localhost:8000";
+,
+            tools: `# Execute web_search tool
+import requests
+
+headers = {"Authorization": f"Bearer aurora_live_YOUR_KEY"}
+r = requests.post(f"http://localhost:8000/v1/tools/web_search", headers=headers, json={
+    "user_id": "YOUR_DEVICE_USER_ID",
+    "query": "latest Python 3.13 features",
+    "max_results": 5
+})
+print(r.json())
+
+# Execute code_exec tool
+r = requests.post(f"http://localhost:8000/v1/tools/python", headers=headers, json={
+    "user_id": "YOUR_DEVICE_USER_ID",
+    "code": "print(sum([1,2,3,4,5]))"
+})
+print(r.json())`,
+            errors: `# 401 Unauthorized
+{"detail": "Invalid or expired Aurora key"}
+
+# 422 Unprocessable Entity
+{"detail": "No API key stored for provider=openrouter"}
+
+# 502 Bad Gateway
+{"detail": "Failed to call OpenRouter API: rate limit exceeded"}`
+        },
+        javascript: {
+            quickstart: `const API_BASE = "http://localhost:8000";
 const AURORA_KEY = "aurora_live_YOUR_KEY";
-const USER_ID = "YOUR_USER_ID";
+const USER_ID = "YOUR_DEVICE_USER_ID";
 
 const headers = {
   "Authorization": \`Bearer \${AURORA_KEY}\`,
   "Content-Type": "application/json"
 };`,
-        chat: `async function chat(message) {
+            project: `// Standalone project - use Aurora key from dashboard
+const API_BASE = "http://localhost:8000";
+const AURORA_KEY = "aurora_live_YOUR_KEY_HERE";
+const USER_ID = "YOUR_DEVICE_USER_ID";
+
+const headers = {"Authorization": \`Bearer \${AURORA_KEY}\`, "Content-Type": "application/json"};
+
+// Chat with memory and tools
+console.log("🚀 Sending message...");
+fetch(\`\${API_BASE}/v1/run\`, {
+  method: "POST", headers,
+  body: JSON.stringify({
+    user_id: USER_ID,
+    input: "My name is Safi. What programming language should I learn?",
+    memory_scope: "user",
+    provider: "openrouter",
+    model: "openrouter/auto"
+  })
+}).then(r => r.json()).then(data => {
+  console.log(\`✓ Response: \${data.output.slice(0, 150)}...\`);
+  console.log(\`✓ Skill: \${data.skill}\`);
+  console.log(\`✓ Memory hits: \${data.metrics.memory_hits}\`);
+  
+  // Get stored facts
+  console.log("\\n📚 Retrieving memory...");
+  return fetch(\`\${API_BASE}/v1/memory/context\`, {
+    method: "POST", headers,
+    body: JSON.stringify({user_id: USER_ID, query: "name preferences", memory_scope: "user"})
+  }).then(r => r.json());
+}).then(data => {
+  console.log(\`✓ Found \${data.structured_memories.length} facts\`);
+  data.structured_memories.forEach(f => {
+    if(f.kind.startsWith("fact_")) console.log(\`  - \${f.kind}: \${f.data.value}\`);
+  });
+  console.log("\\n✅ Done!");
+});`,
+            chat: `async function chat(message) {
   const res = await fetch(\`\${API_BASE}/v1/run\`, {
     method: "POST", headers,
     body: JSON.stringify({
       user_id: USER_ID,
       input: message,
       memory_scope: "user",
+      provider: "openrouter",
+      model: "openrouter/auto"
     })
+  });
+  const data = await res.json();
+  console.log("Skill:", data.skill);
+  console.log("Tools:", data.tool_calls.map(t => t.name));
+  console.log("Memory hits:", data.metrics.memory_hits);
+  return data.output;
+}
+
+await chat("What are the latest React 19 features?");`,
+            compare: `async function compare(prompt) {
   const res = await fetch(\`\${API_BASE}/v1/compare\`, {
     method: "POST", headers,
     body: JSON.stringify({
@@ -1357,7 +1535,7 @@ const headers = {
   console.log("Latency gap:", delta.latency_gap_ms + "ms");
   console.log("Skill:", tuned.skill);
 }`,
-        memory: `// Store — shared across all keys for same user_id
+            memory: `// Store — shared across all keys for same user_id
 await fetch(\`\${API_BASE}/v1/memory\`, {
   method: "POST", headers,
   body: JSON.stringify({
@@ -1378,7 +1556,7 @@ const res = await fetch(\`\${API_BASE}/v1/memory/context\`, {
   })
 });
 const { retrieved_memories } = await res.json();`,
-        skill: `// Invoke research skill with web search
+            skill: `// Invoke research skill with web search
 const res = await fetch(\`\${API_BASE}/v1/skills/research\`, {
   method: "POST", headers,
   body: JSON.stringify({
@@ -1388,26 +1566,104 @@ const res = await fetch(\`\${API_BASE}/v1/skills/research\`, {
 });
 const data = await res.json();
 console.log(data.output);
-console.log("Tools:", data.tool_calls);`
-    },
-    typescript: {
-        quickstart: `// TypeScript interface definitions
-interface APIConfig {
-    apiBase: string;
-    auroraKey: string;
-    userId: string;
+console.log("Tools:", data.tool_calls);`,
+            tools: `// Execute the web_search tool
+const res = await fetch(\`\${API_BASE}/v1/tools/web_search\`, {
+  method: "POST", headers,
+  body: JSON.stringify({
+    user_id: USER_ID,
+    query: "latest Python 3.13 features",
+    max_results: 5
+  })
+});
+const data = await res.json();
+console.log(data);
+
+// Execute the code_exec tool
+const res2 = await fetch(\`\${API_BASE}/v1/tools/python\`, {
+  method: "POST", headers,
+  body: JSON.stringify({
+    user_id: USER_ID,
+    code: "print(sum([1,2,3,4,5]))"
+  })
+});
+const data2 = await res2.json();
+console.log(data2);`,
+            errors: `// 401 Unauthorized
+{
+  "detail": "Invalid or expired Aurora key"
 }
 
+// 422 Unprocessable Entity
+{
+  "detail": "No API key stored for provider=openrouter"
+}
+
+// 502 Bad Gateway
+{
+  "detail": "Failed to call OpenRouter API: rate limit exceeded"
+}`
+        },
+        typescript: {
+            quickstart: `const API_BASE = "http://localhost:8000";
+const AURORA_KEY = "aurora_live_YOUR_KEY";
+const USER_ID = "YOUR_DEVICE_USER_ID";
+
 interface RunResponse {
-    conversation_id: string;
-    skill: string;
-    output: string;
-    tool_calls: { name: string; input: object }[];
-    metrics: { memory_hits: number; tool_count: number; usage: object };
+  conversation_id: string;
+  skill: string;
   output: string;
   tool_calls: { name: string; input: object }[];
   metrics: { memory_hits: number; tool_count: number; usage: object };
 }`,
+            project: `// Standalone project - use Aurora key from dashboard
+const API_BASE = "http://localhost:8000";
+const AURORA_KEY = "aurora_live_YOUR_KEY_HERE";
+const USER_ID = "YOUR_DEVICE_USER_ID";
+
+interface RunResponse {
+  output: string;
+  skill: string;
+  metrics: { memory_hits: number };
+}
+
+interface MemoryResponse {
+  structured_memories: Array<{kind: string; data: {value: string}}>;
+}
+
+async function runProject() {
+  console.log("🚀 Sending message...");
+  const headers = {"Authorization": \`Bearer \${AURORA_KEY}\`, "Content-Type": "application/json"};
+  
+  const res = await fetch(\`\${API_BASE}/v1/run\`, {
+    method: "POST", headers,
+    body: JSON.stringify({
+      user_id: USER_ID,
+      input: "My name is Safi. What programming language should I learn?",
+      memory_scope: "user",
+      provider: "openrouter",
+      model: "openrouter/auto"
+    })
+  });
+  const data: RunResponse = await res.json();
+  console.log(\`✓ Response: \${data.output.slice(0, 150)}...\`);
+  console.log(\`✓ Skill: \${data.skill}\`);
+  console.log(\`✓ Memory hits: \${data.metrics.memory_hits}\`);
+  
+  console.log("\\n📚 Retrieving memory...");
+  const memRes = await fetch(\`\${API_BASE}/v1/memory/context\`, {
+    method: "POST", headers,
+    body: JSON.stringify({user_id: USER_ID, query: "name preferences", memory_scope: "user"})
+  });
+  const memData: MemoryResponse = await memRes.json();
+  console.log(\`✓ Found \${memData.structured_memories.length} facts\`);
+  memData.structured_memories.forEach(f => {
+    if(f.kind.startsWith("fact_")) console.log(\`  - \${f.kind}: \${f.data.value}\`);
+  });
+  console.log("\\n✅ Done!");
+}
+
+runProject();`,
             chat: `async function chat(message: string): Promise<string> {
   const res = await fetch(\`\${API_BASE}/v1/run\`, {
     method: "POST",
@@ -1452,63 +1708,92 @@ await fetch(\`\${API_BASE}/v1/memory\`, {
   })
 });`,
             skill: `// Invoke a specific skill
+const res = await fetch(\`\${API_BASE}/v1/skills/code_assistant\`, {
+  method: "POST",
+  headers: { "Authorization": \`Bearer \${AURORA_KEY}\`, "Content-Type": "application/json" },
   body: JSON.stringify({ user_id: USER_ID, input: "Review this TypeScript function for bugs" })
 });
-const data = await res.json();
-console.log(data);
-}
+const data: RunResponse = await res.json();`
+        }
+    };
 
-function renderDocsSnippets(lang) {
-  const snippets = DOCS_SNIPPETS[lang] || DOCS_SNIPPETS.curl;
-  const ids = ["quickstart","chat","compare","memory","skill","tools","errors"];
-  ids.forEach(id => {
-    const el = $(`#docsSnippet${id.charAt(0).toUpperCase()+id.slice(1)}`);
-    console.log(`Element for ${id}:`, el ? "found" : "NOT FOUND");
-    if (!el) return;
-    const code = (snippets[id] || "").replace(
-      /\b(AURORA_KEY|USER_ID|API_BASE)\b/g,
-      currentAuroraKey && currentAuroraKey.slice(0, 20) + "..." || "aurora_live_YOUR_KEY"
-    );
-    el.innerHTML = `<pre><code>${escapeHtml(code)}</code></pre>`;
-  });
-}
-
-function syntaxHL(code, lang) {
-  const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-  let s = esc(code);
-  if (lang === "curl") {
-    s = s.replace(/(#[^\n]*)/g, '<span class="sc">$1</span>');
-    s = s.replace(/("(?:[^"\\]|\\.)*")/g, '<span class="ss">$1</span>');
-    s = s.replace(/\b(curl|POST|GET|PUT|DELETE)\b/g, '<span class="sk">$1</span>');
-    s = s.replace(/(-[A-Za-z]+)/g, '<span class="sp">$1</span>');
-  } else if (lang === "python") {
+    function renderDocsSnippets(lang) {
+        console.log("renderDocsSnippets called with lang:", lang);
+        console.log("currentAuroraKey:", currentAuroraKey ? currentAuroraKey.slice(0, 20) + "..." : "null");
+        console.log("currentUserId:", currentUserId);
+        
+        const snippets = DOCS_SNIPPETS[lang] || DOCS_SNIPPETS.curl;
+        const ids = ["quickstart","project","chat","compare","memory","skill","tools","errors"];
+        ids.forEach(id => {
+            const el = $(`#docsSnippet${id.charAt(0).toUpperCase()+id.slice(1)}`);
+            console.log(`Element for ${id}:`, el ? "found" : "NOT FOUND");
+            if (!el) return;
+            const code = (snippets[id] || "").replace(
+                /YOUR_KEY/g, currentAuroraKey || "YOUR_AURORA_KEY_HERE"
+            ).replace(/YOUR_USER_ID/g, currentUserId || "YOUR_USER_ID_HERE");
+            el.innerHTML = `
+                <div class="docs-snippet__header">
+                    <span class="docs-snippet__lang">${lang}</span>
+                    <button class="docs-snippet__copy" onclick="(function(b){
+                        navigator.clipboard.writeText(b.closest('.docs-snippet').querySelector('pre').textContent).then(()=>{b.textContent='✓ Copied';setTimeout(()=>b.textContent='Copy',1500)})
+                    })(this)">Copy</button>
+                </div>
+                <pre>${syntaxHL(code, lang)}</pre>`;
+            console.log(`Rendered snippet for ${id}, length:`, el.innerHTML.length);
+        });
     }
-    return s;
-}
 
-$("#docsLang")?.addEventListener("change", (e) => renderDocsSnippets(e.target.value));
+    function syntaxHL(code, lang) {
+        const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+        let s = esc(code);
+        if (lang === "curl") {
+            s = s.replace(/(#[^\n]*)/g, '<span class="sc">$1</span>');
+            s = s.replace(/("(?:[^"\\]|\\.)*")/g, '<span class="ss">$1</span>');
+            s = s.replace(/\b(curl|POST|GET|PUT|DELETE)\b/g, '<span class="sk">$1</span>');
+            s = s.replace(/(-[A-Za-z]+)/g, '<span class="sp">$1</span>');
+        } else if (lang === "python") {
+            s = s.replace(/(#[^\n]*)/g, '<span class="sc">$1</span>');
+            s = s.replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, '<span class="ss">$1</span>');
+            s = s.replace(/\b(def|class|import|from|return|if|else|elif|for|while|async|await|with|as|print|True|False|None)\b/g, '<span class="sk">$1</span>');
+            s = s.replace(/\b(\d+)\b/g, '<span class="sn">$1</span>');
+        } else if (lang === "javascript" || lang === "typescript") {
+            s = s.replace(/(\/\/[^\n]*)/g, '<span class="sc">$1</span>');
+            s = s.replace(/(`(?:[^`\\]|\\.)*`|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, '<span class="ss">$1</span>');
+            s = s.replace(/\b(const|let|var|function|async|await|return|interface|type|import|export|new|class)\b/g, '<span class="sk">$1</span>');
+            s = s.replace(/\b(\d+)\b/g, '<span class="sn">$1</span>');
+        }
+        return s;
+    }
 
-// ========================================================
-// COMPARE — real tool preview rendering
-// ========================================================
-function renderToolPreview(toolCalls, toolResults, container) {
-    if (!toolCalls || toolCalls.length === 0) return;
-    toolCalls.forEach((tc, i) => {
-        const result = toolResults?.[i];
-        const preview = document.createElement("div");
-        preview.className = "tool-preview";
-        const outputText = result?.output
-            ? String(result.output).slice(0, 400)
-            : "running…";
-        preview.innerHTML = `
-            <div class="tool-preview__head">
-                <span class="dot"></span>
-                <span>TOOL · ${tc.name}</span>
-                <span style="margin-left:auto;color:#666">${JSON.stringify(tc.input || {}).slice(0, 60)}</span>
-            </div>
-            <div class="tool-preview__body">${escapeHtml(outputText)}</div>
-            ${result ? `<div class="tool-preview__result">✓ completed · ${String(result.output || "").length} chars</div>` : ""}`;
-        container.appendChild(preview);
+    $("#docsLang")?.addEventListener("change", (e) => renderDocsSnippets(e.target.value));
+
+    // ========================================================
+    // COMPARE — real tool preview rendering
+    // ========================================================
+    function renderToolPreview(toolCalls, toolResults, container) {
+        if (!toolCalls || toolCalls.length === 0) return;
+        toolCalls.forEach((tc, i) => {
+            const result = toolResults?.[i];
+            const preview = document.createElement("div");
+            preview.className = "tool-preview";
+            const outputText = result?.output
+                ? String(result.output).slice(0, 400)
+                : "running…";
+            preview.innerHTML = `
+                <div class="tool-preview__head">
+                    <span class="dot"></span>
+                    <span>TOOL · ${tc.name}</span>
+                    <span style="margin-left:auto;color:#666">${JSON.stringify(tc.input || {}).slice(0,60)}</span>
+                </div>
+                <div class="tool-preview__body">${escapeHtml(outputText)}</div>
+                ${result ? `<div class="tool-preview__result">✓ completed · ${String(result.output||"").length} chars</div>` : ""}`;
+            container.appendChild(preview);
+        });
+    }
+
+    // ========================================================
+    // COMPARE — accurate live stats from API response
+    // ========================================================
     function updateCompareStats(data) {
         const baseline = data.baseline;
         const tuned = data.tuned;

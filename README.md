@@ -6,10 +6,17 @@ youtube video link :::: - https://youtu.be/JP9eD4NWDJc
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 
 ---
-youtube video link :::: - https://youtu.be/JP9eD4NWDJc
 
+## ✨ What's New
 
+✅ **Memory System** - Automatically extracts and stores facts from conversations
+✅ **Device-Based User IDs** - Same device = same user ID, no authentication needed
+✅ **Aurora Keys** - Generate enhanced API keys from dashboard
+✅ **Standalone Projects** - Use `my_project.py` as template for external projects
+✅ **Code Snippets** - Examples for curl, Python, JavaScript, TypeScript in Dev Docs tab
+✅ **Memory Tab** - View all extracted facts with confidence scores
 
+---
 
 ## 📋 Table of Contents
 
@@ -17,8 +24,10 @@ youtube video link :::: - https://youtu.be/JP9eD4NWDJc
 2. [Complete Setup Tutorial](#-complete-setup-tutorial)
 3. [How It Works](#-how-it-works)
 4. [Raw vs Enhanced](#-raw-vs-enhanced)
-5. [API Reference](#-api-reference)
-6. [Troubleshooting](#-troubleshooting)
+5. [Memory System](#-memory-system)
+6. [Standalone Projects](#-standalone-projects)
+7. [API Reference](#-api-reference)
+8. [Troubleshooting](#-troubleshooting)
 
 ---
 
@@ -304,6 +313,142 @@ calc = Calculator()
 result = calc.calculate("+", 5, 3)
 print(f"Result: {result}")
 ```
+
+---
+
+## 🧠 Memory System
+
+The system automatically extracts and stores facts from conversations:
+
+### Fact Types Extracted
+- **Names**: "My name is Safi" → `fact_name`
+- **Preferences**: "I prefer Python" → `fact_preference`
+- **Projects**: "I'm working on ML" → `fact_project`
+- **Technology**: "I use TensorFlow" → `fact_technology`
+- **Roles**: "I'm a developer" → `fact_role`
+- **Companies**: "I work at Google" → `fact_company`
+- **Locations**: "I'm from NYC" → `fact_location`
+
+### View Facts
+1. Open dashboard at http://localhost:3000
+2. Click "Memory" tab
+3. See all extracted facts with:
+   - Fact text
+   - Type (name, preference, project, etc.)
+   - Source (conversation or manual)
+   - Confidence score
+   - Date learned
+
+### Use Facts in API
+```bash
+curl -X POST http://localhost:8000/v1/memory/context \
+  -H "Authorization: Bearer aurora_live_YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "YOUR_USER_ID",
+    "query": "name preferences",
+    "memory_scope": "user"
+  }'
+```
+
+---
+
+## 🚀 Standalone Projects
+
+Use `my_project.py` as a template for external projects:
+
+### Setup
+1. Generate Aurora key from dashboard
+2. Copy `my_project.py` to your project
+3. Replace placeholders:
+   - `AURORA_KEY` - from dashboard
+   - `USER_ID` - from browser console
+4. Run: `python3 my_project.py`
+
+### Example: my_project.py (42 lines)
+```python
+#!/usr/bin/env python3
+import requests
+
+API_BASE = "http://localhost:8000"
+AURORA_KEY = "aurora_live_YOUR_KEY_HERE"
+USER_ID = "YOUR_DEVICE_USER_ID"
+
+headers = {"Authorization": f"Bearer {AURORA_KEY}", "Content-Type": "application/json"}
+
+# Chat with memory and tools
+print("🚀 Sending message...")
+r = requests.post(f"{API_BASE}/v1/run", headers=headers, json={
+    "user_id": USER_ID,
+    "input": "My name is Safi. What programming language should I learn?",
+    "memory_scope": "user",
+    "provider": "openrouter",
+    "model": "openrouter/auto"
+})
+data = r.json()
+print(f"✓ Response: {data['output'][:150]}...")
+print(f"✓ Skill: {data['skill']}")
+print(f"✓ Memory hits: {data['metrics']['memory_hits']}")
+
+# Get stored facts
+print("\n📚 Retrieving memory...")
+r = requests.post(f"{API_BASE}/v1/memory/context", headers=headers, json={
+    "user_id": USER_ID,
+    "query": "name preferences",
+    "memory_scope": "user"
+})
+facts = r.json()["structured_memories"]
+print(f"✓ Found {len(facts)} facts")
+for fact in facts:
+    if fact["kind"].startswith("fact_"):
+        print(f"  - {fact['kind']}: {fact['data'].get('value')}")
+
+print("\n✅ Done!")
+```
+
+### Code Snippets
+View code examples in the Dev Docs tab:
+- **Quickstart** - Basic setup
+- **Project** - Standalone project template
+- **Chat** - Send messages with memory
+- **Compare** - Raw vs enhanced comparison
+- **Memory** - Store and retrieve facts
+- **Skills** - Invoke specific skills
+- **Tools** - Execute tools
+- **Errors** - Common error responses
+
+Available in: curl, Python, JavaScript, TypeScript
+
+---
+
+## 🔑 Device-Based User IDs
+
+No authentication needed! User IDs are automatically generated from browser fingerprint:
+
+- **Same device** = same user ID across sessions
+- **Different devices** = different user IDs
+- **Stored in** localStorage
+- **Based on**: user agent, language, timezone, screen resolution, CPU cores
+
+View your device ID in browser console:
+```javascript
+console.log(localStorage.getItem("hs_device_user_id"))
+```
+
+---
+
+## 🎫 Aurora Keys
+
+Generate enhanced API keys from the dashboard:
+
+1. Open http://localhost:3000
+2. Sign in (any email)
+3. Click "Generate Enhanced Key"
+4. Copy the key (format: `aurora_live_xxxxx`)
+5. Use in API calls:
+   ```bash
+   curl -H "Authorization: Bearer aurora_live_xxxxx" ...
+   ```
 
 ---
 

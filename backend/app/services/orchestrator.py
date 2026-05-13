@@ -999,32 +999,36 @@ class Orchestrator:
         """
         # Enhanced patterns to detect important information
         patterns = [
-            # Name patterns - more comprehensive
-            (r"(?:my name is|i'm|i am|call me|this is|i go by)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)", "name"),
-            (r"(?:i'm called|they call me|people call me)\s+([A-Z][a-z]+)", "name"),
+            # Name patterns - more comprehensive and flexible
+            (r"my name is\s+([A-Za-z]+)\b", "name"),
+            (r"i'm\s+([A-Za-z]+)\s+(?:here|speaking|talking)", "name"),
+            (r"call me\s+([A-Za-z]+)\b", "name"),
+            (r"you can call me\s+([A-Za-z]+)\b", "name"),
+            (r"i go by\s+([A-Za-z]+)\b", "name"),
+            (r"i am\s+([A-Za-z]+)\s+(?:here|speaking)", "name"),
             
             # Preference patterns - more detailed
-            (r"i (?:prefer|like|love|enjoy|want|need|use)\s+(.+?)(?:\.|$|,|\s+(?:and|but|because))", "preference"),
-            (r"i (?:don't like|hate|dislike|avoid|never use)\s+(.+?)(?:\.|$|,|\s+(?:and|but|because))", "dislike"),
-            (r"my favorite\s+(.+?)\s+is\s+(.+?)(?:\.|$|,)", "favorite"),
+            (r"i\s+(?:prefer|like|love|enjoy|want|need|use)\s+([^.,;!?]+?)(?:\s+(?:over|instead of|rather than|not|and|but|because)|[.,;!?]|$)", "preference"),
+            (r"i\s+(?:don't like|hate|dislike|avoid|never use)\s+([^.,;!?]+?)(?:[.,;!?]|$)", "dislike"),
+            (r"my favorite\s+([^.,;!?]+?)\s+is\s+([^.,;!?]+?)(?:[.,;!?]|$)", "favorite"),
             
             # Context patterns - expanded
-            (r"i(?:'m| am) (?:building|working on|developing|creating|making)\s+(.+?)(?:\.|$|,|\s+(?:using|with|for))", "project"),
-            (r"i(?:'m| am) (?:a|an)\s+(.+?)(?:\.|$|,|\s+(?:at|in|for))", "role"),
-            (r"i work (?:as|as a|as an)\s+(.+?)(?:\.|$|,)", "job_title"),
+            (r"i(?:'m| am)\s+(?:building|working on|developing|creating|making)\s+([^.,;!?]+?)(?:\s+(?:using|with|for)|[.,;!?]|$)", "project"),
+            (r"i(?:'m| am)\s+(?:a|an)\s+([^.,;!?]+?)(?:\s+(?:at|in|for)|[.,;!?]|$)", "role"),
+            (r"i work\s+(?:as|as a|as an)\s+([^.,;!?]+?)(?:[.,;!?]|$)", "job_title"),
             
             # Location/company - enhanced
-            (r"i work (?:at|for)\s+(.+?)(?:\.|$|,)", "company"),
-            (r"i(?:'m| am) (?:from|in|based in|located in)\s+(.+?)(?:\.|$|,)", "location"),
+            (r"i work\s+(?:at|for)\s+([^.,;!?]+?)(?:[.,;!?]|$)", "company"),
+            (r"i(?:'m| am)\s+(?:from|in|based in|located in)\s+([^.,;!?]+?)(?:[.,;!?]|$)", "location"),
             
             # Technology/tools
-            (r"i (?:use|work with|code in|program in)\s+(.+?)(?:\.|$|,|\s+(?:and|for|to))", "technology"),
-            (r"i(?:'m| am) learning\s+(.+?)(?:\.|$|,)", "learning"),
+            (r"i\s+(?:use|work with|code in|program in)\s+([^.,;!?]+?)(?:\s+(?:and|for|to)|[.,;!?]|$)", "technology"),
+            (r"i(?:'m| am)\s+learning\s+([^.,;!?]+?)(?:[.,;!?]|$)", "learning"),
             
             # Goals/objectives
-            (r"i want to\s+(.+?)(?:\.|$|,)", "goal"),
-            (r"i(?:'m| am) trying to\s+(.+?)(?:\.|$|,)", "goal"),
-            (r"my goal is to\s+(.+?)(?:\.|$|,)", "goal"),
+            (r"i want to\s+([^.,;!?]+?)(?:[.,;!?]|$)", "goal"),
+            (r"i(?:'m| am)\s+trying to\s+([^.,;!?]+?)(?:[.,;!?]|$)", "goal"),
+            (r"my goal is to\s+([^.,;!?]+?)(?:[.,;!?]|$)", "goal"),
             
             # Personal details
             (r"i have\s+(\d+)\s+years?\s+(?:of\s+)?experience", "experience_years"),

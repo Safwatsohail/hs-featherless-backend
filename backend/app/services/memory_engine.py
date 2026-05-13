@@ -258,13 +258,24 @@ class MemoryEngine:
         memory_scope: str = "user",
         context_key: str | None = None,
     ) -> list[RetrievedMemory]:
-        results = await self.vector_store.query(
-            user_id=user_id,
-            query=query,
-            top_k=top_k or self.settings.vector_top_k,
-            memory_scope=memory_scope,
-            context_key=context_key,
-        )
+        # Check if the vector_store has the new async interface
+        if hasattr(self.vector_store, '__class__') and self.vector_store.__class__.__name__ in ['InMemoryVectorStore', 'ChromaVectorStore']:
+            # New async interface
+            results = await self.vector_store.query(
+                user_id=user_id,
+                query=query,
+                top_k=top_k or self.settings.vector_top_k,
+                memory_scope=memory_scope,
+                context_key=context_key,
+            )
+        else:
+            # Old sync interface
+            results = self.vector_store.query(
+                user_id=str(user_id),
+                query=query,
+                top_k=top_k or self.settings.vector_top_k,
+            )
+        
         # Normalize dicts returned by VectorStore implementations into RetrievedMemory
         normalized: list[RetrievedMemory] = []
         for item in results:
@@ -320,14 +331,36 @@ class MemoryEngine:
         memory_scope: str = "user",
         context_key: str | None = None,
     ) -> str:
-        return await self.vector_store.add(
-            user_id=user_id,
-            conversation_id=conversation_id,
-            text=text,
-            metadata=metadata,
-            memory_scope=memory_scope,
-            context_key=context_key,
-        )
+        # Check if the vector_store has the new async interface (from vector_store.py)
+        # or the old sync interface (from memory_engine.py)
+        if hasattr(self.vector_store, '__class__') and self.vector_store.__class__.__name__ in ['InMemoryVectorStore', 'ChromaVectorStore']:
+            # New async interface
+            return await self.vector_store.add(
+                user_id=user_id,
+                conversation_id=conversation_id,
+                text=text,
+                metadata=metadata,
+                memory_scope=memory_scope,
+                context_key=context_key,
+            )
+        else:
+            # Old sync interface (VectorMemoryStore)
+            item_id = str(uuid.uuid4())
+            # Prepare metadata with all context
+            full_metadata = {
+                "user_id": str(user_id),
+                "conversation_id": str(conversation_id) if conversation_id else None,
+                "memory_scope": memory_scope,
+                "context_key": context_key,
+                **metadata
+            }
+            # Call the synchronous add method
+            self.vector_store.add(
+                item_id=item_id,
+                text=text,
+                metadata=full_metadata,
+            )
+            return item_id
 
     async def store_structured(
         self,
@@ -380,7 +413,7 @@ class MemoryEngine:
             .where(
                 MemoryMetadata.user_id == uid_str,
                 MemoryMetadata.memory_scope == memory_scope,
-                MemoryMetadata.context_key == context_key,
+                MemoryMetadata.context_key.in_([context_key, "default", None]),  # Handle both None and "default"
             )
             .order_by(desc(MemoryMetadata.created_at))
             .limit(structured_limit)

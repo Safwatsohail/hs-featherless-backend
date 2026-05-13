@@ -314,14 +314,21 @@ class ToolEngine:
             raise ToolError("python tool requires non-empty 'code'.")
 
         with tempfile.TemporaryDirectory(prefix="tool_py_") as td:
-            proc = subprocess.run(
-                [sys.executable, "-I", "-c", code],
-                cwd=td,
-                capture_output=True,
-                text=True,
-                timeout=self.python_timeout_seconds,
-                env={},
-            )
+            try:
+                proc = subprocess.run(
+                    [sys.executable, "-I", "-c", code],
+                    cwd=td,
+                    capture_output=True,
+                    text=True,
+                    timeout=self.python_timeout_seconds,
+                    env={},
+                )
+            except subprocess.TimeoutExpired:
+                return ToolResult(
+                    name="python",
+                    output=f"⏱️ Code execution timed out after {self.python_timeout_seconds} seconds. The code may be waiting for user input or running an infinite loop.",
+                    metadata={"returncode": -1, "timeout": True}
+                )
         out = (proc.stdout or "") + (proc.stderr or "")
         return ToolResult(name="python", output=out.strip(), metadata={"returncode": proc.returncode})
 
@@ -330,13 +337,20 @@ class ToolEngine:
         if not command:
             raise ToolError("bash tool requires non-empty 'command'.")
 
-        proc = subprocess.run(
-            ["bash", "-lc", command],
-            capture_output=True,
-            text=True,
-            timeout=self.bash_timeout_seconds,
-            env={},
-        )
+        try:
+            proc = subprocess.run(
+                ["bash", "-lc", command],
+                capture_output=True,
+                text=True,
+                timeout=self.bash_timeout_seconds,
+                env={},
+            )
+        except subprocess.TimeoutExpired:
+            return ToolResult(
+                name="bash",
+                output=f"⏱️ Command execution timed out after {self.bash_timeout_seconds} seconds.",
+                metadata={"returncode": -1, "timeout": True}
+            )
         out = (proc.stdout or "") + (proc.stderr or "")
         return ToolResult(
             name="bash",
