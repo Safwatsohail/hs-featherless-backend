@@ -11,7 +11,7 @@ import json
 API_BASE = "http://localhost:8000"
 AURORA_KEY = "aurora_live_YOUR_KEY_HERE"  # Replace with your Aurora key
 USER_ID = "YOUR_DEVICE_USER_ID"  # Replace with your device user ID
-OPENROUTER_KEY = "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"
+OPENROUTER_KEY = "YOUR_OPENROUTER_API_KEY"  # Get from https://openrouter.ai
 
 headers = {
     "Authorization": f"Bearer {AURORA_KEY}",
@@ -85,3 +85,4 @@ if __name__ == "__main__":
     print(f"Found {len(memory['structured_memories'])} facts")
     
     print("\n✅ Done!")
+

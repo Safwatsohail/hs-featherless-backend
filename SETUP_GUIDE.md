@@ -17,7 +17,7 @@
 ### 3. Code Samples in Dev Tab
 - ✅ All 7 code snippets rendering (quickstart, chat, compare, memory, skill, tools, errors)
 - ✅ Multiple languages: curl, Python, JavaScript, TypeScript
-- ✅ Real API key included: `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`
+- ✅ Real API key included: Get from https://openrouter.ai
 - ✅ Device user ID references: `YOUR_DEVICE_USER_ID`
 
 ### 4. Tools & Skills Integration
@@ -53,7 +53,7 @@ curl -X POST http://localhost:8000/apikey \
   -d '{
     "user_id": "YOUR_DEVICE_USER_ID",
     "provider": "openrouter",
-    "api_key": "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"
+    "api_key": "YOUR_OPENROUTER_API_KEY"
   }'
 ```
 
@@ -257,9 +257,7 @@ async function compare(message) {
 ## 🔑 API Key Information
 
 ### Your OpenRouter Key
-```
-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
-```
+Get your key from: https://openrouter.ai
 
 ### How It Works
 1. **Store Once**: Your OpenRouter key is stored securely on the backend

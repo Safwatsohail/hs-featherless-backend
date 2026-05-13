@@ -3,7 +3,7 @@
 import requests, uuid
 
 API = "http://localhost:8000"
-KEY = "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"
+KEY = "YOUR_OPENROUTER_API_KEY"  # Get from https://openrouter.ai
 USER = str(uuid.uuid4())
 
 # 1. Store API key
