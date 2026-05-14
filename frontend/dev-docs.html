@@ -1,0 +1,811 @@
+<!-- ============ DEV DOCS DASHBOARD ============ -->
+<!-- This is a standalone dev docs page that can be embedded or used separately -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>H&S Layer - Developer Documentation</title>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+    <style>
+        .docs-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: var(--s-6);
+        }
+
+        .docs-header {
+            margin-bottom: var(--s-8);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: var(--s-6);
+        }
+
+        .docs-header h1 {
+            font-size: 2.5rem;
+            margin: 0 0 var(--s-3) 0;
+        }
+
+        .docs-header p {
+            color: var(--text-sub);
+            font-size: 1.125rem;
+            margin: 0;
+        }
+
+        .docs-nav {
+            display: flex;
+            gap: var(--s-4);
+            margin-bottom: var(--s-6);
+            flex-wrap: wrap;
+        }
+
+        .docs-nav-btn {
+            padding: var(--s-2) var(--s-4);
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--r-2);
+            color: var(--text-sub);
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .docs-nav-btn:hover,
+        .docs-nav-btn.is-active {
+            background: var(--accent);
+            color: var(--accent-ink);
+            border-color: var(--accent);
+        }
+
+        .docs-section {
+            margin-bottom: var(--s-8);
+            padding-bottom: var(--s-6);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .docs-section:last-child {
+            border-bottom: none;
+        }
+
+        .docs-section h2 {
+            font-size: 1.75rem;
+            margin: 0 0 var(--s-3) 0;
+            color: var(--text);
+        }
+
+        .docs-section h3 {
+            font-size: 1.25rem;
+            margin: var(--s-5) 0 var(--s-3) 0;
+            color: var(--text);
+        }
+
+        .docs-section p {
+            color: var(--text-sub);
+            line-height: 1.8;
+            margin: 0 0 var(--s-4) 0;
+        }
+
+        .docs-code-block {
+            background: #1e1e1e;
+            border: 1px solid var(--border);
+            border-radius: var(--r-2);
+            padding: var(--s-4);
+            margin: var(--s-4) 0;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .docs-code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--s-3);
+            padding-bottom: var(--s-3);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .docs-code-lang {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .docs-code-copy {
+            padding: var(--s-1) var(--s-3);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--r-1);
+            color: var(--text-dim);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .docs-code-copy:hover {
+            background: var(--surface-2);
+            color: var(--text);
+        }
+
+        .docs-code-copy.copied {
+            background: #4ade80;
+            color: #000;
+        }
+
+        .docs-code {
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            line-height: 1.6;
+            color: #d4d4d4;
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .docs-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: var(--s-4) 0;
+        }
+
+        .docs-table th {
+            background: var(--surface-2);
+            padding: var(--s-3);
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid var(--border);
+            color: var(--text);
+        }
+
+        .docs-table td {
+            padding: var(--s-3);
+            border-bottom: 1px solid var(--border);
+            color: var(--text-sub);
+        }
+
+        .docs-table tr:hover {
+            background: var(--surface-2);
+        }
+
+        .docs-note {
+            background: var(--surface-2);
+            border-left: 3px solid var(--accent);
+            padding: var(--s-4);
+            border-radius: var(--r-2);
+            margin: var(--s-4) 0;
+            color: var(--text-sub);
+        }
+
+        .docs-note strong {
+            color: var(--text);
+        }
+
+        .docs-list {
+            list-style: none;
+            padding: 0;
+            margin: var(--s-4) 0;
+        }
+
+        .docs-list li {
+            padding: var(--s-2) 0 var(--s-2) var(--s-4);
+            position: relative;
+            color: var(--text-sub);
+            line-height: 1.6;
+        }
+
+        .docs-list li:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: var(--text-dim);
+        }
+
+        .docs-endpoint {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--r-2);
+            padding: var(--s-4);
+            margin: var(--s-4) 0;
+        }
+
+        .docs-endpoint-method {
+            display: inline-block;
+            padding: var(--s-1) var(--s-3);
+            background: var(--surface);
+            border-radius: var(--r-1);
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-dim);
+            margin-right: var(--s-2);
+        }
+
+        .docs-endpoint-path {
+            font-family: var(--font-mono);
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .docs-endpoint-desc {
+            color: var(--text-sub);
+            margin-top: var(--s-2);
+            font-size: 0.875rem;
+        }
+
+        .language-selector {
+            display: flex;
+            gap: var(--s-2);
+            margin-bottom: var(--s-6);
+        }
+
+        .lang-btn {
+            padding: var(--s-2) var(--s-4);
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--r-2);
+            color: var(--text-sub);
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .lang-btn:hover,
+        .lang-btn.is-active {
+            background: var(--accent);
+            color: var(--accent-ink);
+            border-color: var(--accent);
+        }
+
+        .code-sample {
+            display: none;
+        }
+
+        .code-sample.is-active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="docs-container">
+        <!-- Header -->
+        <div class="docs-header">
+            <h1>Developer Documentation</h1>
+            <p>Everything you need to integrate H&S Layer into your project</p>
+        </div>
+
+        <!-- Language Selector -->
+        <div class="language-selector">
+            <button class="lang-btn is-active" data-lang="curl">cURL</button>
+            <button class="lang-btn" data-lang="python">Python</button>
+            <button class="lang-btn" data-lang="javascript">JavaScript</button>
+            <button class="lang-btn" data-lang="typescript">TypeScript</button>
+        </div>
+
+        <!-- Quick Start -->
+        <div class="docs-section">
+            <h2>Quick Start</h2>
+            <p>Get up and running in 5 minutes. Replace your raw API key with your Aurora key.</p>
+
+            <h3>1. Store Your Provider Key</h3>
+            <div class="docs-code-block">
+                <div class="docs-code-header">
+                    <span class="docs-code-lang">cURL</span>
+                    <button class="docs-code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre class="docs-code code-sample is-active" data-lang="curl">curl -X POST http://localhost:8000/apikey \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "YOUR_DEVICE_USER_ID",
+    "provider": "openrouter",
+    "api_key": "YOUR_OPENROUTER_API_KEY"
+  }'</pre>
+                <pre class="docs-code code-sample" data-lang="python">import requests
+
+requests.post(
+    "http://localhost:8000/apikey",
+    json={
+        "user_id": "YOUR_DEVICE_USER_ID",
+        "provider": "openrouter",
+        "api_key": "YOUR_OPENROUTER_API_KEY"
+    }
+)</pre>
+                <pre class="docs-code code-sample" data-lang="javascript">const response = await fetch("http://localhost:8000/apikey", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    user_id: "YOUR_DEVICE_USER_ID",
+    provider: "openrouter",
+    api_key: "YOUR_OPENROUTER_API_KEY"
+  })
+});</pre>
+                <pre class="docs-code code-sample" data-lang="typescript">const response = await fetch("http://localhost:8000/apikey", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    user_id: "YOUR_DEVICE_USER_ID",
+    provider: "openrouter",
+    api_key: "YOUR_OPENROUTER_API_KEY"
+  })
+});</pre>
+            </div>
+
+            <h3>2. Generate Your Aurora Key</h3>
+            <div class="docs-code-block">
+                <div class="docs-code-header">
+                    <span class="docs-code-lang">cURL</span>
+                    <button class="docs-code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre class="docs-code code-sample is-active" data-lang="curl">curl -X POST http://localhost:8000/auth/issue-key \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "YOUR_DEVICE_USER_ID",
+    "name": "My Enhanced Key",
+    "scopes": ["chat", "memory", "tools", "skills"]
+  }'</pre>
+                <pre class="docs-code code-sample" data-lang="python">response = requests.post(
+    "http://localhost:8000/auth/issue-key",
+    json={
+        "user_id": "YOUR_DEVICE_USER_ID",
+        "name": "My Enhanced Key",
+        "scopes": ["chat", "memory", "tools", "skills"]
+    }
+)
+api_key = response.json()["api_key"]</pre>
+                <pre class="docs-code code-sample" data-lang="javascript">const response = await fetch("http://localhost:8000/auth/issue-key", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    user_id: "YOUR_DEVICE_USER_ID",
+    name: "My Enhanced Key",
+    scopes: ["chat", "memory", "tools", "skills"]
+  })
+});
+const { api_key } = await response.json();</pre>
+                <pre class="docs-code code-sample" data-lang="typescript">const response = await fetch("http://localhost:8000/auth/issue-key", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    user_id: "YOUR_DEVICE_USER_ID",
+    name: "My Enhanced Key",
+    scopes: ["chat", "memory", "tools", "skills"]
+  })
+});
+const { api_key } = await response.json();</pre>
+            </div>
+
+            <h3>3. Make Your First Request</h3>
+            <div class="docs-code-block">
+                <div class="docs-code-header">
+                    <span class="docs-code-lang">cURL</span>
+                    <button class="docs-code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre class="docs-code code-sample is-active" data-lang="curl">curl -X POST http://localhost:8000/v1/run \
+  -H "Authorization: Bearer aurora_live_YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "YOUR_DEVICE_USER_ID",
+    "input": "What is my most used model?",
+    "memory_scope": "user",
+    "provider": "openrouter",
+    "model": "openai/gpt-oss-120b:free"
+  }'</pre>
+                <pre class="docs-code code-sample" data-lang="python">response = requests.post(
+    "http://localhost:8000/v1/run",
+    headers={
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    },
+    json={
+        "user_id": "YOUR_DEVICE_USER_ID",
+        "input": "What is my most used model?",
+        "memory_scope": "user",
+        "provider": "openrouter",
+        "model": "openai/gpt-oss-120b:free"
+    }
+)
+print(response.json())</pre>
+                <pre class="docs-code code-sample" data-lang="javascript">const response = await fetch("http://localhost:8000/v1/run", {
+  method: "POST",
+  headers: {
+    "Authorization": `Bearer ${apiKey}`,
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    user_id: "YOUR_DEVICE_USER_ID",
+    input: "What is my most used model?",
+    memory_scope: "user",
+    provider: "openrouter",
+    model: "openai/gpt-oss-120b:free"
+  })
+});
+const data = await response.json();
+console.log(data);</pre>
+                <pre class="docs-code code-sample" data-lang="typescript">const response = await fetch("http://localhost:8000/v1/run", {
+  method: "POST",
+  headers: {
+    "Authorization": `Bearer ${apiKey}`,
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    user_id: "YOUR_DEVICE_USER_ID",
+    input: "What is my most used model?",
+    memory_scope: "user",
+    provider: "openrouter",
+    model: "openai/gpt-oss-120b:free"
+  })
+});
+const data = await response.json();
+console.log(data);</pre>
+            </div>
+        </div>
+
+        <!-- API Reference -->
+        <div class="docs-section">
+            <h2>API Reference</h2>
+
+            <h3>Chat Endpoint</h3>
+            <div class="docs-endpoint">
+                <div>
+                    <span class="docs-endpoint-method">POST</span>
+                    <span class="docs-endpoint-path">/v1/run</span>
+                </div>
+                <div class="docs-endpoint-desc">Send a message and get an enhanced response with memory, tools, and skills</div>
+            </div>
+
+            <h3>Request Parameters</h3>
+            <table class="docs-table">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Type</th>
+                        <th>Required</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>user_id</td>
+                        <td>string</td>
+                        <td>Yes</td>
+                        <td>Your device user ID</td>
+                    </tr>
+                    <tr>
+                        <td>input</td>
+                        <td>string</td>
+                        <td>Yes</td>
+                        <td>Your message or prompt</td>
+                    </tr>
+                    <tr>
+                        <td>memory_scope</td>
+                        <td>string</td>
+                        <td>No</td>
+                        <td>Memory scope: user, workspace, conversation, global</td>
+                    </tr>
+                    <tr>
+                        <td>provider</td>
+                        <td>string</td>
+                        <td>No</td>
+                        <td>LLM provider: openrouter, featherless, openai, anthropic</td>
+                    </tr>
+                    <tr>
+                        <td>model</td>
+                        <td>string</td>
+                        <td>No</td>
+                        <td>Model name (e.g., openai/gpt-oss-120b:free)</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Response Format</h3>
+            <div class="docs-code-block">
+                <div class="docs-code-header">
+                    <span class="docs-code-lang">JSON</span>
+                </div>
+                <pre class="docs-code">{
+  "conversation_id": "uuid",
+  "skill": "analysis",
+  "output": "Your response here...",
+  "provider": "openrouter",
+  "model": "openai/gpt-oss-120b:free",
+  "tool_calls": [],
+  "tool_results": [],
+  "metrics": {
+    "memory_hits": 3,
+    "tool_count": 0,
+    "usage": {
+      "prompt_tokens": 150,
+      "completion_tokens": 200,
+      "total_tokens": 350
+    }
+  }
+}</pre>
+            </div>
+        </div>
+
+        <!-- Memory API -->
+        <div class="docs-section">
+            <h2>Memory API</h2>
+            <p>Store and retrieve facts that models remember across conversations.</p>
+
+            <h3>Store a Fact</h3>
+            <div class="docs-endpoint">
+                <div>
+                    <span class="docs-endpoint-method">POST</span>
+                    <span class="docs-endpoint-path">/v1/memory</span>
+                </div>
+                <div class="docs-endpoint-desc">Store a fact in unified memory</div>
+            </div>
+
+            <div class="docs-code-block">
+                <div class="docs-code-header">
+                    <span class="docs-code-lang">cURL</span>
+                    <button class="docs-code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre class="docs-code code-sample is-active" data-lang="curl">curl -X POST http://localhost:8000/v1/memory \
+  -H "Authorization: Bearer aurora_live_YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "YOUR_DEVICE_USER_ID",
+    "text": "User prefers Python for backend development",
+    "kind": "preference",
+    "memory_scope": "user",
+    "metadata": {"source": "user_feedback"}
+  }'</pre>
+                <pre class="docs-code code-sample" data-lang="python">requests.post(
+    "http://localhost:8000/v1/memory",
+    headers={
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    },
+    json={
+        "user_id": "YOUR_DEVICE_USER_ID",
+        "text": "User prefers Python for backend development",
+        "kind": "preference",
+        "memory_scope": "user",
+        "metadata": {"source": "user_feedback"}
+    }
+)</pre>
+                <pre class="docs-code code-sample" data-lang="javascript">await fetch("http://localhost:8000/v1/memory", {
+  method: "POST",
+  headers: {
+    "Authorization": `Bearer ${apiKey}`,
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    user_id: "YOUR_DEVICE_USER_ID",
+    text: "User prefers Python for backend development",
+    kind: "preference",
+    memory_scope: "user",
+    metadata: { source: "user_feedback" }
+  })
+});</pre>
+                <pre class="docs-code code-sample" data-lang="typescript">await fetch("http://localhost:8000/v1/memory", {
+  method: "POST",
+  headers: {
+    "Authorization": `Bearer ${apiKey}`,
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    user_id: "YOUR_DEVICE_USER_ID",
+    text: "User prefers Python for backend development",
+    kind: "preference",
+    memory_scope: "user",
+    metadata: { source: "user_feedback" }
+  })
+});</pre>
+            </div>
+
+            <h3>Memory Kinds</h3>
+            <ul class="docs-list">
+                <li><strong>identity:</strong> Facts about who the user is</li>
+                <li><strong>preference:</strong> User preferences and settings</li>
+                <li><strong>context:</strong> Contextual information about projects</li>
+                <li><strong>secret:</strong> Sensitive information (encrypted)</li>
+            </ul>
+        </div>
+
+        <!-- Tools API -->
+        <div class="docs-section">
+            <h2>Tools API</h2>
+            <p>Create and execute custom tools in a sandboxed environment.</p>
+
+            <h3>Tool Structure</h3>
+            <div class="docs-code-block">
+                <div class="docs-code-header">
+                    <span class="docs-code-lang">JavaScript</span>
+                    <button class="docs-code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre class="docs-code">export const schema = {
+  intent: "my_tool",
+  params: {
+    input: "string",
+    count: "number"
+  },
+  returns: {
+    result: "string",
+    status: "string"
+  }
+};
+
+export async function run(params) {
+  // Your tool implementation
+  return {
+    result: "Success",
+    status: "completed"
+  };
+}</pre>
+            </div>
+
+            <h3>Tool Execution</h3>
+            <div class="docs-endpoint">
+                <div>
+                    <span class="docs-endpoint-method">POST</span>
+                    <span class="docs-endpoint-path">/v1/tools/{name}</span>
+                </div>
+                <div class="docs-endpoint-desc">Execute a custom tool</div>
+            </div>
+
+            <div class="docs-note">
+                <strong>⚡ Performance:</strong> Tools run in isolated-vm with 50ms budget and 64MB memory limit
+            </div>
+        </div>
+
+        <!-- Skills -->
+        <div class="docs-section">
+            <h2>Skills</h2>
+            <p>Pre-built capabilities that route requests intelligently.</p>
+
+            <h3>Available Skills</h3>
+            <table class="docs-table">
+                <thead>
+                    <tr>
+                        <th>Skill</th>
+                        <th>Description</th>
+                        <th>Tools</th>
+                        <th>Overhead</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>analysis</td>
+                        <td>Deep reasoning with memory and web search</td>
+                        <td>web_search, memory</td>
+                        <td>2-4ms</td>
+                    </tr>
+                    <tr>
+                        <td>summary</td>
+                        <td>Quick summaries with web retrieval</td>
+                        <td>web_search</td>
+                        <td>1-2ms</td>
+                    </tr>
+                    <tr>
+                        <td>code</td>
+                        <td>Programming tasks with code execution</td>
+                        <td>code_exec, math</td>
+                        <td>2-3ms</td>
+                    </tr>
+                    <tr>
+                        <td>research</td>
+                        <td>In-depth research with multiple sources</td>
+                        <td>web_search, deep_search</td>
+                        <td>3-4ms</td>
+                    </tr>
+                    <tr>
+                        <td>math</td>
+                        <td>Calculations and numerical analysis</td>
+                        <td>math_exec</td>
+                        <td>1ms</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Error Handling -->
+        <div class="docs-section">
+            <h2>Error Handling</h2>
+
+            <h3>Common Errors</h3>
+            <table class="docs-table">
+                <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>Error</th>
+                        <th>Solution</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>401</td>
+                        <td>Unauthorized</td>
+                        <td>Check your Aurora key is valid and not expired</td>
+                    </tr>
+                    <tr>
+                        <td>400</td>
+                        <td>Bad Request</td>
+                        <td>Verify all required parameters are provided</td>
+                    </tr>
+                    <tr>
+                        <td>429</td>
+                        <td>Rate Limited</td>
+                        <td>Wait before making more requests</td>
+                    </tr>
+                    <tr>
+                        <td>500</td>
+                        <td>Server Error</td>
+                        <td>Try again or contact support</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Best Practices -->
+        <div class="docs-section">
+            <h2>Best Practices</h2>
+
+            <h3>Security</h3>
+            <ul class="docs-list">
+                <li>Never commit API keys to version control</li>
+                <li>Use environment variables for sensitive data</li>
+                <li>Rotate keys regularly</li>
+                <li>Use different keys for dev/prod environments</li>
+            </ul>
+
+            <h3>Performance</h3>
+            <ul class="docs-list">
+                <li>Cache memory facts to reduce API calls</li>
+                <li>Use appropriate memory scopes</li>
+                <li>Enable only needed skills</li>
+                <li>Batch requests when possible</li>
+            </ul>
+
+            <h3>Reliability</h3>
+            <ul class="docs-list">
+                <li>Implement exponential backoff for retries</li>
+                <li>Handle timeouts gracefully</li>
+                <li>Log all API interactions</li>
+                <li>Monitor error rates</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Language switching
+        document.querySelectorAll(".lang-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const lang = btn.getAttribute("data-lang");
+                
+                // Update active button
+                document.querySelectorAll(".lang-btn").forEach(b => {
+                    b.classList.toggle("is-active", b === btn);
+                });
+                
+                // Update code samples
+                document.querySelectorAll(".code-sample").forEach(sample => {
+                    sample.classList.toggle("is-active", sample.getAttribute("data-lang") === lang);
+                });
+            });
+        });
+
+        // Copy code
+        function copyCode(button) {
+            const codeBlock = button.closest(".docs-code-block");
+            const code = codeBlock.querySelector(".code-sample.is-active");
+            if (!code) return;
+            
+            navigator.clipboard.writeText(code.textContent).then(() => {
+                const originalText = button.textContent;
+                button.textContent = "✓ Copied";
+                button.classList.add("copied");
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.classList.remove("copied");
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>

@@ -115,14 +115,20 @@ class ChromaVectorStore(VectorStore):
         context_key: str | None = None,
     ) -> str:
         _id = str(uuid.uuid4())
+        # Chroma rejects None values — strip them out
         meta = {
             "id": _id,
             "user_id": str(user_id),
-            "conversation_id": str(conversation_id) if conversation_id else None,
             "memory_scope": memory_scope,
-            "context_key": context_key,
-            **(metadata or {}),
         }
+        if conversation_id is not None:
+            meta["conversation_id"] = str(conversation_id)
+        if context_key is not None:
+            meta["context_key"] = context_key
+        # Flatten metadata, skipping None values
+        for k, v in (metadata or {}).items():
+            if v is not None and isinstance(v, (str, int, float, bool)):
+                meta[k] = v
         emb = stable_hash_embedding(text)
         self._collection.add(ids=[_id], documents=[text], metadatas=[meta], embeddings=[emb])
         return _id
@@ -137,19 +143,32 @@ class ChromaVectorStore(VectorStore):
         context_key: str | None = None,
     ) -> list[dict]:
         emb = stable_hash_embedding(query)
-        where: dict[str, str | None] = {"user_id": str(user_id), "memory_scope": memory_scope}
-        where["context_key"] = context_key
-        res = self._collection.query(
-            query_embeddings=[emb],
-            n_results=top_k,
-            where=where,
-            include=["documents", "metadatas", "distances"],
-        )
+        # Only filter on non-null fields — Chroma can't filter on null values
+        where: dict = {"user_id": str(user_id), "memory_scope": memory_scope}
+        if context_key is not None:
+            where["context_key"] = context_key
+        try:
+            res = self._collection.query(
+                query_embeddings=[emb],
+                n_results=top_k,
+                where=where,
+                include=["documents", "metadatas", "distances"],
+            )
+        except Exception:
+            # Fallback: query without filters if Chroma rejects the where clause
+            res = self._collection.query(
+                query_embeddings=[emb],
+                n_results=top_k,
+                include=["documents", "metadatas", "distances"],
+            )
         docs = (res.get("documents") or [[]])[0]
         metas = (res.get("metadatas") or [[]])[0]
         dists = (res.get("distances") or [[]])[0]
         hits = []
         for doc, meta, dist in zip(docs, metas, dists, strict=False):
+            # Post-filter by user_id to ensure we only return this user's facts
+            if meta.get("user_id") != str(user_id):
+                continue
             score = float(-dist) if dist is not None else 0.0
             hits.append({"id": meta.get("id", ""), "text": doc, "score": score, "metadata": meta})
         return hits

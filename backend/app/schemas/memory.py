@@ -38,11 +38,12 @@ class ContextMemoryRequest(BaseModel):
     user_id: uuid.UUID
     conversation_id: uuid.UUID | None = None
     query: str | None = None
-    top_k: int = Field(default=5, ge=1, le=20)
-    message_limit: int = Field(default=10, ge=1, le=50)
-    structured_limit: int = Field(default=10, ge=1, le=50)
+    top_k: int = Field(default=5, ge=1, le=50)
+    message_limit: int = Field(default=10, ge=1, le=100)
+    structured_limit: int = Field(default=10, ge=1, le=200)
     memory_scope: Literal["conversation", "user", "workspace", "global"] = "user"
     context_key: str | None = Field(default=None, min_length=1, max_length=120)
+    exclude_kinds: list[str] = Field(default_factory=list)  # e.g. ["turn", "assistant_summary"]
 
 
 class ContextMessage(BaseModel):

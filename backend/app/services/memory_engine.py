@@ -396,6 +396,7 @@ class MemoryEngine:
         message_limit: int = 10,
         structured_limit: int = 10,
         conversation_id: uuid.UUID | None = None,
+        exclude_kinds: list[str] | None = None,
     ) -> dict[str, Any]:
         uid_str = str(user_id)
         memories = []
@@ -408,13 +409,17 @@ class MemoryEngine:
                 context_key=context_key,
             )
 
+        # Build structured query — exclude unwanted kinds at DB level
+        where_clauses = [
+            MemoryMetadata.user_id == uid_str,
+            MemoryMetadata.memory_scope == memory_scope,
+        ]
+        if exclude_kinds:
+            where_clauses.append(MemoryMetadata.kind.notin_(exclude_kinds))
+
         structured_stmt = (
             select(MemoryMetadata)
-            .where(
-                MemoryMetadata.user_id == uid_str,
-                MemoryMetadata.memory_scope == memory_scope,
-                MemoryMetadata.context_key.in_([context_key, "default", None]),  # Handle both None and "default"
-            )
+            .where(*where_clauses)
             .order_by(desc(MemoryMetadata.created_at))
             .limit(structured_limit)
         )

@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.db.session import get_db
+from app.models.memory_metadata import MemoryMetadata
 from app.schemas.memory import (
     ContextMemoryRequest,
     ContextMemoryResponse,
@@ -14,6 +16,7 @@ from app.schemas.memory import (
     MemoryHit,
     MemoryRetrieveResponse,
     MemoryStoreRequest,
+    MemoryUpdateRequest,
     StructuredMemoryItem,
 )
 from app.services.memory_engine import MemoryEngine
@@ -114,7 +117,15 @@ async def retrieve_context_memory(
         structured_limit=payload.structured_limit,
         memory_scope=payload.memory_scope,
         context_key=payload.context_key,
+        exclude_kinds=payload.exclude_kinds or [],
     )
+
+    # Filter out excluded kinds (e.g. "turn", "assistant_summary")
+    exclude = set(payload.exclude_kinds or [])
+    structured = snapshot["structured_memories"]
+    if exclude:
+        structured = [m for m in structured if m.kind not in exclude]
+
     return ContextMemoryResponse(
         memory_scope=snapshot["memory_scope"],
         context_key=snapshot["context_key"],
@@ -145,3 +156,56 @@ async def retrieve_context_memory(
             for item in snapshot["structured_memories"]
         ],
     )
+
+
+@router.delete("/{memory_id}")
+async def delete_memory(
+    memory_id: uuid.UUID,
+    user_id: uuid.UUID = Query(...),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Delete a specific memory fact by ID. Only the owning user can delete."""
+    result = await db.execute(
+        select(MemoryMetadata).where(
+            MemoryMetadata.id == memory_id,
+            MemoryMetadata.user_id == str(user_id),
+        )
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Memory not found or not owned by user")
+    await db.delete(row)
+    await db.commit()
+    return {"deleted": True, "id": str(memory_id)}
+
+
+@router.patch("/{memory_id}")
+async def update_memory(
+    memory_id: uuid.UUID,
+    payload: MemoryUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Update the text/kind of an existing memory fact."""
+    result = await db.execute(
+        select(MemoryMetadata).where(
+            MemoryMetadata.id == memory_id,
+            MemoryMetadata.user_id == str(payload.user_id),
+        )
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Memory not found or not owned by user")
+    row.kind = payload.kind or row.kind
+    row.data = {
+        **row.data,
+        "text": payload.text,
+        "metadata": payload.metadata or row.data.get("metadata"),
+    }
+    await db.commit()
+    await db.refresh(row)
+    return {
+        "updated": True,
+        "metadata_id": str(row.id),
+        "kind": row.kind,
+        "text": payload.text,
+    }

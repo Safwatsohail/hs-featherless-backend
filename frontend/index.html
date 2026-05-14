@@ -263,12 +263,6 @@
                         Continue with SSO
                     </button>
 
-                    <!-- Demo Button -->
-                    <button class="btn btn--ghost btn--lg btn--block" id="authDemoBtn" data-testid="auth-demo-btn" style="margin-top: 1rem;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                        View Interactive Demo
-                    </button>
-
                     <p class="auth__fineprint" style="margin-top: 2rem;">
                         Already have an enhanced key?
                         <a href="#dashboard" data-route="dashboard" data-testid="auth-skip-dash">Skip to dashboard →</a>
@@ -277,23 +271,230 @@
             </div>
         </section>
 
-        <!-- ============ DEMO ANIMATION ============ -->
-        <section class="route" data-route="demo" id="demo" hidden>
-            <div class="demo-container">
+        <!-- ============ TUTORIAL DECK ============ -->
+        <section class="route" data-route="tutorial" id="tutorial" hidden>
+            <div class="tutorial-container">
                 <a href="#auth" data-route="auth" class="auth__back" style="position: absolute; top: 2rem; left: 2rem; z-index: 100;">← Back to Auth</a>
                 
-                <div class="demo-stage" id="demoStage">
-                    <div class="demo-overlay">
-                        <h1 class="demo-title">H&amp;S Layer Demo</h1>
-                        <p class="demo-subtitle">Watch the complete flow from onboarding to A/B comparison</p>
+                <div class="tutorial-deck">
+                    <!-- Slide 1: Welcome -->
+                    <div class="tutorial-slide is-active" data-slide="0">
+                        <div class="tutorial-header">
+                            <span class="tutorial-badge">01 / 08</span>
+                            <h1>Welcome to H&S Layer</h1>
+                        </div>
+                        <div class="tutorial-content">
+                            <p class="tutorial-intro">Your production-ready nervous system for Featherless.ai</p>
+                            <div class="tutorial-features">
+                                <div class="feature-item">
+                                    <span class="feature-icon">💾</span>
+                                    <span>Unified Memory</span>
+                                </div>
+                                <div class="feature-item">
+                                    <span class="feature-icon">🛠️</span>
+                                    <span>Tool Builder</span>
+                                </div>
+                                <div class="feature-item">
+                                    <span class="feature-icon">🧠</span>
+                                    <span>Smart Skills</span>
+                                </div>
+                                <div class="feature-item">
+                                    <span class="feature-icon">🔑</span>
+                                    <span>API Keys</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    
-                    <!-- Demo will be rendered here via JavaScript -->
-                    <div class="demo-content" id="demoContent"></div>
-                    
-                    <div class="demo-controls">
-                        <button class="btn btn--ghost" id="demoRestartBtn">↻ Restart</button>
-                        <button class="btn btn--solid" id="demoSkipBtn">Skip to Dashboard →</button>
+
+                    <!-- Slide 2: Getting Started -->
+                    <div class="tutorial-slide" data-slide="1">
+                        <div class="tutorial-header">
+                            <span class="tutorial-badge">02 / 08</span>
+                            <h1>Getting Started</h1>
+                        </div>
+                        <div class="tutorial-content">
+                            <h3>Step 1: Bridge Your API Key</h3>
+                            <ol class="tutorial-steps">
+                                <li>Go to the onboarding screen</li>
+                                <li>Paste your Featherless API key</li>
+                                <li>Click "Generate Enhanced Key"</li>
+                                <li>Your Aurora key is ready to use!</li>
+                            </ol>
+                            <div class="tutorial-note">
+                                <strong>💡 Tip:</strong> Your Featherless key stays encrypted. We generate a drop-in replacement that adds memory, tools, and skills.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 3: API Keys Management -->
+                    <div class="tutorial-slide" data-slide="2">
+                        <div class="tutorial-header">
+                            <span class="tutorial-badge">03 / 08</span>
+                            <h1>Managing API Keys</h1>
+                        </div>
+                        <div class="tutorial-content">
+                            <h3>Generate Multiple Keys</h3>
+                            <ol class="tutorial-steps">
+                                <li>Go to Dashboard → API Key tab</li>
+                                <li>Scroll to "Additional Keys" section</li>
+                                <li>Click "+ Generate Another"</li>
+                                <li>New key appears with creation date</li>
+                            </ol>
+                            <h3>Use Cases</h3>
+                            <ul class="tutorial-list">
+                                <li>Separate keys for dev/prod environments</li>
+                                <li>Different keys for team members</li>
+                                <li>Rotate keys without downtime</li>
+                                <li>Revoke compromised keys individually</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Slide 4: Unified Memory -->
+                    <div class="tutorial-slide" data-slide="3">
+                        <div class="tutorial-header">
+                            <span class="tutorial-badge">04 / 08</span>
+                            <h1>Unified Memory System</h1>
+                        </div>
+                        <div class="tutorial-content">
+                            <h3>How Memory Works</h3>
+                            <p>Store facts that models remember across conversations and API keys.</p>
+                            <ol class="tutorial-steps">
+                                <li>Go to Dashboard → Unified Memory tab</li>
+                                <li>Click "+ Add fact"</li>
+                                <li>Enter fact text and select tag (identity, preference, context, secret)</li>
+                                <li>Model recalls facts in future conversations</li>
+                            </ol>
+                            <h3>Memory Scopes</h3>
+                            <ul class="tutorial-list">
+                                <li><strong>user:</strong> Shared across all your API keys</li>
+                                <li><strong>workspace:</strong> Scoped to specific project</li>
+                                <li><strong>conversation:</strong> Private to single chat</li>
+                                <li><strong>global:</strong> Shared across all users</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Slide 5: Tool Builder -->
+                    <div class="tutorial-slide" data-slide="4">
+                        <div class="tutorial-header">
+                            <span class="tutorial-badge">05 / 08</span>
+                            <h1>Creating Custom Tools</h1>
+                        </div>
+                        <div class="tutorial-content">
+                            <h3>Build Tools in JavaScript</h3>
+                            <ol class="tutorial-steps">
+                                <li>Go to Dashboard → Tool Builder tab</li>
+                                <li>Click "+ New tool"</li>
+                                <li>Write JavaScript with schema and run() function</li>
+                                <li>Click "Run tool" to test</li>
+                                <li>View output in console</li>
+                            </ol>
+                            <h3>Tool Structure</h3>
+                            <pre class="tutorial-code">export const schema = {
+  intent: "my_tool",
+  params: { input: "string" },
+  returns: { result: "any" }
+};
+
+export async function run(params) {
+  return { result: "Tool executed" };
+}</pre>
+                        </div>
+                    </div>
+
+                    <!-- Slide 6: Skills & Routing -->
+                    <div class="tutorial-slide" data-slide="5">
+                        <div class="tutorial-header">
+                            <span class="tutorial-badge">06 / 08</span>
+                            <h1>Skills & Intent Routing</h1>
+                        </div>
+                        <div class="tutorial-content">
+                            <h3>What Are Skills?</h3>
+                            <p>Pre-built capabilities that route requests to the right tools and models.</p>
+                            <h3>Available Skills</h3>
+                            <ul class="tutorial-list">
+                                <li><strong>Analysis:</strong> Deep reasoning with memory and web search</li>
+                                <li><strong>Summary:</strong> Quick summaries with web retrieval</li>
+                                <li><strong>Code:</strong> Programming tasks with code execution</li>
+                                <li><strong>Research:</strong> In-depth research with multiple sources</li>
+                                <li><strong>Math:</strong> Calculations and numerical analysis</li>
+                            </ul>
+                            <h3>Enable Skills</h3>
+                            <ol class="tutorial-steps">
+                                <li>Go to Dashboard → Skill Store tab</li>
+                                <li>Toggle skills on/off</li>
+                                <li>Each skill adds 1-4ms overhead</li>
+                            </ol>
+                        </div>
+                    </div>
+
+                    <!-- Slide 7: Testing & Debugging -->
+                    <div class="tutorial-slide" data-slide="6">
+                        <div class="tutorial-header">
+                            <span class="tutorial-badge">07 / 08</span>
+                            <h1>Testing & Debugging</h1>
+                        </div>
+                        <div class="tutorial-content">
+                            <h3>Test Your API Key</h3>
+                            <ol class="tutorial-steps">
+                                <li>Go to Dashboard → API Key tab</li>
+                                <li>Click "Test Key →"</li>
+                                <li>See response with skill, output, and memory hits</li>
+                            </ol>
+                            <h3>A/B Comparison</h3>
+                            <ol class="tutorial-steps">
+                                <li>Go to Dashboard → A/B Chat tab</li>
+                                <li>Enter your OpenRouter API key</li>
+                                <li>Select a model</li>
+                                <li>Type a prompt and click "Run"</li>
+                                <li>Compare raw vs enhanced responses</li>
+                            </ol>
+                            <h3>View Metrics</h3>
+                            <ul class="tutorial-list">
+                                <li>Latency (ms)</li>
+                                <li>Token usage</li>
+                                <li>Cost (USD)</li>
+                                <li>Tools used</li>
+                                <li>Memory hits</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Slide 8: Developer Documentation -->
+                    <div class="tutorial-slide" data-slide="7">
+                        <div class="tutorial-header">
+                            <span class="tutorial-badge">08 / 08</span>
+                            <h1>Developer Documentation</h1>
+                        </div>
+                        <div class="tutorial-content">
+                            <h3>Code Samples Available</h3>
+                            <ul class="tutorial-list">
+                                <li>cURL</li>
+                                <li>Python</li>
+                                <li>JavaScript</li>
+                                <li>TypeScript</li>
+                            </ul>
+                            <h3>Access Dev Docs</h3>
+                            <ol class="tutorial-steps">
+                                <li>Go to Dashboard → Dev Docs tab</li>
+                                <li>Select your language</li>
+                                <li>Copy code snippets</li>
+                                <li>Integrate into your project</li>
+                            </ol>
+                            <div class="tutorial-note">
+                                <strong>🚀 Ready to build?</strong> Start with the Quick Start example and customize from there.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation -->
+                    <div class="tutorial-nav">
+                        <button class="btn btn--ghost" id="tutorialPrevBtn">← Previous</button>
+                        <div class="tutorial-progress">
+                            <div class="progress-dots" id="progressDots"></div>
+                        </div>
+                        <button class="btn btn--solid" id="tutorialNextBtn">Next →</button>
                     </div>
                 </div>
             </div>
@@ -457,7 +658,7 @@
                                 </div>
                                 <div class="field">
                                     <label class="field__label">USER ID</label>
-                                    <input type="text" id="compareUserId" placeholder="user-id" value="00000000-0000-0000-0000-000000000001" />
+                                    <input type="text" id="compareUserId" placeholder="auto-filled from device" value="" />
                                 </div>
                                 <div class="field">
                                     <label class="field__label">OPENROUTER KEY</label>
@@ -665,6 +866,15 @@
                                 <button class="btn btn--solid" id="apikeyTestBtn">Test Key →</button>
                             </div>
                             <div class="apikey-test-result" id="apikeyTestResult" hidden></div>
+
+                            <!-- Multiple API Keys List -->
+                            <div style="margin-top: var(--s-6); padding-top: var(--s-6); border-top: 1px solid var(--border);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--s-4);">
+                                    <h3 style="font-size: 14px; font-weight: 600;">Additional Keys</h3>
+                                    <button class="btn btn--solid" id="apikeyGenerateAnotherBtn" style="font-size: 12px; padding: 6px 12px;">+ Generate Another</button>
+                                </div>
+                                <div id="apikeysList" style="display: grid; gap: var(--s-3);"></div>
+                            </div>
                         </div>
                     </div>
 
@@ -789,7 +999,7 @@
         <!-- toast -->
         <div class="toast" id="toast" data-testid="toast" hidden></div>
 
-        <script src="/main.js"></script>
+        <script src="/main.js?v=5"></script>
     </body>
 </html>
 
