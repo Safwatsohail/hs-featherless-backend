@@ -752,8 +752,8 @@
         const data = item.data || {};
         const kind = item.kind || "";
 
-        // Skip raw conversation turns — they're not user facts
-        if (kind === "turn") return "";
+        // Skip raw conversation turns
+        if (kind === "turn" || kind === "assistant_summary" || kind === "message" || kind === "tool_calls") return "";
 
         // Handle fact_* kinds from backend auto-extraction
         if (kind.startsWith("fact_") || data.type) {
@@ -762,10 +762,10 @@
             if (!value) return "";
             if (type === "name") return `Name: ${value}`;
             if (type === "age") return `Age: ${value}`;
-            if (type === "color" || type === "favourite_color" || type === "favorite_color") return `Favourite color: ${value}`;
+            if (type === "color" || type === "favourite_color" || type === "favorite_color" || type === "favorite") return `Favourite color: ${value}`;
             if (type === "preference") return `Prefers: ${value}`;
             if (type === "dislike") return `Dislikes: ${value}`;
-            if (type === "project") return `Working on: ${value}`;
+            if (type === "project") return `Project: ${value}`;
             if (type === "role") return `Role: ${value}`;
             if (type === "company") return `Company: ${value}`;
             if (type === "location") return `Location: ${value}`;
@@ -775,7 +775,7 @@
             return `${type}: ${value}`;
         }
 
-        // Fallback for manually stored facts
+        // Manually stored facts have data.text
         if (data.text) return String(data.text);
         if (data.value) return `${data.type || kind}: ${data.value}`;
         return "";
@@ -835,44 +835,44 @@
     }
 
     async function loadMemory() {
-        if (!currentAuroraKey || !currentUserId) {
-            console.log("Skipping memory load - no auth");
-            return;
-        }
+        if (!currentAuroraKey || !currentUserId) return;
         try {
             const response = await fetch(`${API_BASE}/v1/memory/context`, {
                 method: "POST",
                 headers: memoryHeaders(),
                 body: JSON.stringify({
                     user_id: currentUserId,
-                    query: "name age color preference technology goal project role company location learning",
+                    query: "name age color preference technology goal project role company location learning dislike",
                     memory_scope: "user",
-                    top_k: 30,
+                    top_k: 50,
                     structured_limit: 200,
-                    exclude_kinds: ["turn", "assistant_summary", "message"]
+                    exclude_kinds: ["turn", "assistant_summary", "message", "tool_calls", "tool_result"]
                 })
             });
             if (!response.ok) return;
 
-            const memoryData = await response.json();
-            const structured = memoryData.structured_memories || [];
-            const retrieved = memoryData.retrieved_memories || [];
+            const data = await response.json();
+            const structured = data.structured_memories || [];
+            const retrieved = data.retrieved_memories || [];
             const seen = new Set();
             memory = [];
 
+            // Backend now filters out conversation turns, so we only get real facts
             structured.forEach((item) => {
                 const fact = factTextFromStructured(item);
-                if (!fact || fact.trim().length < 3) return;
+                if (!fact || fact.length < 3) return;
+
                 const key = normalizeMemoryText(fact);
                 if (seen.has(key)) return;
                 seen.add(key);
 
-                let tag = (item.kind || "").replace(/^fact_/, "");
-                if (["name","age","role","company","location"].includes(tag)) tag = "identity";
-                else if (["preference","color","favourite_color","favorite_color","technology","learning"].includes(tag)) tag = "preference";
-                else if (["goal","project","dislike"].includes(tag)) tag = "context";
+                // Map kind → display tag
+                const k = (item.kind || "").replace(/^fact_/, "");
+                let tag = "context";
+                if (["name","age","role","company","location"].includes(k)) tag = "identity";
+                else if (["preference","color","favourite_color","favorite_color","technology","learning","favorite"].includes(k)) tag = "preference";
+                else if (["goal","project","dislike"].includes(k)) tag = "context";
                 else if (item.kind === "note" || item.kind === "identity") tag = "identity";
-                else if (!["identity","preference","context","secret"].includes(tag)) tag = "context";
 
                 memory.push({
                     id: item.id,
@@ -880,34 +880,37 @@
                     fact,
                     tag,
                     source: item.data?.metadata?.source || (item.data?.original_text ? "conversation" : "manual"),
-                    learned: String(item.created_at || new Date().toISOString()).slice(0, 10),
+                    learned: String(item.created_at || "").slice(0, 10) || new Date().toISOString().slice(0, 10),
                     conf: 100
                 });
             });
 
-            // Add vector hits not already shown
+            // Add vector hits that aren't already shown
             retrieved.forEach((m, i) => {
                 const fact = String(m.text || "").trim();
                 if (!fact || fact.length < 5) return;
-                if (m.metadata?.role === "assistant_summary") return;
+                // Skip conversation turns (user messages and assistant summaries)
+                if (m.metadata?.role === "assistant_summary" || m.metadata?.role === "user") return;
+                // Only show extracted facts (role: "user_fact") or manual facts
+                if (m.metadata?.role && m.metadata.role !== "user_fact") return;
                 const key = normalizeMemoryText(fact);
                 if (seen.has(key)) return;
                 seen.add(key);
                 memory.push({
                     id: `vector-${m.id || i}`,
                     fact,
-                    tag: (m.metadata?.kind || "context").replace(/^fact_/, ""),
+                    tag: "context",
                     source: "conversation",
                     learned: new Date().toISOString().slice(0, 10),
-                    conf: 80
+                    conf: 85  // fixed confidence for vector hits
                 });
             });
 
             renderMemory();
-            const dashFactCount = $("#dashFactCount");
-            if (dashFactCount) dashFactCount.textContent = memory.length;
-        } catch (error) {
-            console.error("Failed to load memory:", error);
+            const el = $("#dashFactCount");
+            if (el) el.textContent = memory.length;
+        } catch (e) {
+            console.error("loadMemory failed:", e);
         }
     }
 

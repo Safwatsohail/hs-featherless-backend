@@ -414,8 +414,10 @@ class MemoryEngine:
             MemoryMetadata.user_id == uid_str,
             MemoryMetadata.memory_scope == memory_scope,
         ]
+        # Fix: Use NOT IN with proper list instead of notin_ which breaks with context_key
         if exclude_kinds:
-            where_clauses.append(MemoryMetadata.kind.notin_(exclude_kinds))
+            # Filter out excluded kinds directly in Python after fetch for reliability
+            pass  # We'll filter after the query
 
         structured_stmt = (
             select(MemoryMetadata)
@@ -424,7 +426,14 @@ class MemoryEngine:
             .limit(structured_limit)
         )
         structured_result = await self.session.execute(structured_stmt)
-        structured = list(structured_result.scalars().all())
+        all_structured = list(structured_result.scalars().all())
+        
+        # Filter excluded kinds in Python for reliability
+        if exclude_kinds:
+            exclude_set = set(exclude_kinds)
+            structured = [m for m in all_structured if m.kind not in exclude_set]
+        else:
+            structured = all_structured
 
         conversation_ids: list[str] = []
         if conversation_id:
